@@ -1,5 +1,15 @@
 :root {
   color-scheme: light dark;
+
+  --bg: light-dark(#ffffff, #101216);
+  --panel: light-dark(#f4f5f7, #1a1d23);
+  --text: light-dark(#1a202c, #e6e8eb);
+  --text-sub: light-dark(#67717c, #9aa4af);
+  --border: light-dark(#dfe3e8, #2c313a);
+  --accent: light-dark(#2563eb, #7ab5ff);
+  --accent-contrast: light-dark(#ffffff, #101216);
+  --danger: light-dark(#dc2626, #f87171);
+
   font-family:
     system-ui,
     'Segoe UI',
@@ -9,6 +19,8 @@
     sans-serif;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  color: var(--text);
+  background: var(--bg);
 }
 
 *,
@@ -20,4 +32,39 @@
 body {
   margin: 0;
   min-height: 100dvh;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+/* スマホのタッチ操作前提: 押せるものは十分な大きさにする */
+button {
+  min-height: 44px;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+input {
+  min-height: 44px;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+input:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
