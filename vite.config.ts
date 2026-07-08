@@ -9,8 +9,11 @@ export default defineConfig({
   server: {
     host: true,
   },
+  // preview も dev と同じポートにする。ポート(=オリジン)が変わると
+  // ブラウザの保存データ(localStorage)が別扱いになって見えなくなるため
   preview: {
     host: true,
+    port: 5173,
   },
   test: {
     environment: 'jsdom',

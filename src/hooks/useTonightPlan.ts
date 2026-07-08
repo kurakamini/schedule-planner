@@ -28,18 +28,22 @@ function renumber(items: PlanItem[]): PlanItem[] {
 
 /**
  * プラン未作成ならルーチン全件を選択済みで初期化する。
+ * 夜が変わっていたら(nightKey 不一致)前夜のプランを破棄して作り直す(F5)。
+ * 深夜 0 時を過ぎても朝 4 時までは同じ夜として扱う。
  * 作成ビュー表示中(started: false)は、あとから登録されたルーチンを末尾に取り込む
  * (当夜の調整=チェック・並び順・当日タスクはそのまま残す)。
  */
 function syncWithRoutines(
-  prev: TonightPlan | null,
+  stored: TonightPlan | null,
   routines: RoutineTask[],
   defaultBedtime: number,
 ): TonightPlan {
+  const nightKey = getNightKey(new Date())
+  const prev = stored !== null && stored.nightKey === nightKey ? stored : null
   if (prev?.started) return prev
   if (!prev) {
     return {
-      nightKey: getNightKey(new Date()),
+      nightKey,
       bedtime: defaultBedtime,
       started: false,
       items: routines.map((r, i) => routineToItem(r, i)),

@@ -2,8 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { TonightTab } from './TonightTab'
-import { loadTonightPlan, saveRoutines, saveSettings } from '../../lib/storage'
-import type { RoutineTask } from '../../types'
+import {
+  loadTonightPlan,
+  saveRoutines,
+  saveSettings,
+  saveTonightPlan,
+} from '../../lib/storage'
+import type { RoutineTask, TonightPlan } from '../../types'
 
 // requirements.md の具体例に合わせたルーチン(21:10 帰宅・就寝 24:30)
 const ROUTINES: RoutineTask[] = [
@@ -244,5 +249,60 @@ describe('TonightTab: 実行ビュー', () => {
     ).toBeInTheDocument()
     // NOW カードは消える
     expect(document.querySelector('.now-card')).toBeNull()
+  })
+})
+
+describe('TonightTab: 夜の切り替わり(F5)', () => {
+  const lastNightPlan: TonightPlan = {
+    nightKey: '2026-07-07',
+    bedtime: 1470,
+    started: true,
+    items: [
+      {
+        id: 'i1',
+        routineId: 'r1',
+        name: '夕食',
+        durationMin: 30,
+        order: 0,
+        included: true,
+        done: true,
+        doneAt: 1300,
+      },
+    ],
+  }
+
+  it('翌夜に開くと前夜のプラン(実行中でも)は破棄され、作成ビューから始まる', () => {
+    saveTonightPlan(lastNightPlan) // 前夜(7/7)の実行中プラン。現在は 7/8 21:10
+    render(<TonightTab />)
+
+    expect(
+      screen.getByRole('heading', { name: '今夜のプラン' }),
+    ).toBeInTheDocument()
+    // ルーチン全件が未完了・選択済みで作り直されている
+    const checks = screen.getAllByRole('checkbox')
+    expect(checks).toHaveLength(4)
+    expect(loadTonightPlan()?.nightKey).toBe('2026-07-08')
+  })
+
+  it('深夜 0 時を過ぎても(朝 4 時まで)同じ夜としてプランを保持する', () => {
+    saveTonightPlan({ ...lastNightPlan, nightKey: '2026-07-08' })
+    vi.setSystemTime(new Date(2026, 6, 9, 1, 0)) // 翌 1:00 = 25:00
+
+    render(<TonightTab />)
+    expect(
+      screen.getByRole('heading', { name: '今夜のスケジュール' }),
+    ).toBeInTheDocument()
+    expect(loadTonightPlan()?.nightKey).toBe('2026-07-08')
+  })
+
+  it('朝 4 時を過ぎると新しい夜になる', () => {
+    saveTonightPlan({ ...lastNightPlan, nightKey: '2026-07-08' })
+    vi.setSystemTime(new Date(2026, 6, 9, 4, 0)) // 朝 4:00
+
+    render(<TonightTab />)
+    expect(
+      screen.getByRole('heading', { name: '今夜のプラン' }),
+    ).toBeInTheDocument()
+    expect(loadTonightPlan()?.nightKey).toBe('2026-07-09')
   })
 })
