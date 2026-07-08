@@ -184,7 +184,118 @@
   font-size: 1.1rem;
 }
 
+/* ---- 今夜タブ: 実行ビュー ---- */
+
+.exec-header {
+  color: var(--text-sub);
+  margin: 0 0 1rem;
+}
+
+.now-card {
+  border: 2px solid var(--accent);
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1.25rem;
+  text-align: center;
+}
+
+.now-label {
+  margin: 0;
+  color: var(--text-sub);
+  font-size: 0.9rem;
+}
+
+.now-task {
+  margin: 0.25rem 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.now-until {
+  margin: 0 0 0.75rem;
+  color: var(--text-sub);
+}
+
+.celebration {
+  border: 2px solid var(--accent);
+  border-radius: 12px;
+  padding: 1.5rem 1rem;
+  margin-bottom: 1.25rem;
+  text-align: center;
+}
+
+.celebration-emoji {
+  margin: 0;
+  font-size: 2.5rem;
+}
+
+.celebration-title {
+  margin: 0.25rem 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.adhoc-details {
+  margin-bottom: 1rem;
+}
+
+.adhoc-details summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.adhoc-section {
+  border-top: 2px solid var(--border);
+  padding-top: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.adhoc-section h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+}
+
 /* ---- 今夜タブ: タイムライン ---- */
+
+.tl-row input[type='checkbox'] {
+  min-height: 0;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  align-self: center;
+  accent-color: var(--accent);
+}
+
+.tl-done {
+  opacity: 0.55;
+}
+
+.tl-done .tl-name {
+  text-decoration: line-through;
+  font-weight: 400;
+}
+
+.tl-current {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-radius: 8px;
+  padding-left: 0.4rem;
+  padding-right: 0.4rem;
+  border-bottom-color: transparent;
+}
+
+.tl-exclude {
+  margin-left: auto;
+  min-height: 36px;
+  padding: 0.15rem 0.6rem;
+  font-size: 0.8rem;
+  color: var(--text-sub);
+  flex-shrink: 0;
+}
 
 .warning-banner {
   border: 1px solid var(--danger);

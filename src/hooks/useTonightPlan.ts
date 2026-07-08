@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { PlanItem, RoutineTask, TonightPlan } from '../types'
-import { getNightKey } from '../lib/time'
+import { getNightKey, toNightMinutes } from '../lib/time'
 import { loadTonightPlan, saveTonightPlan } from '../lib/storage'
 
 export type AdhocInput = {
@@ -130,6 +130,24 @@ export function useTonightPlan(routines: RoutineTask[], defaultBedtime: number) 
     [mutate],
   )
 
+  const toggleDone = useCallback(
+    (id: string) => {
+      mutate((prev) => ({
+        ...prev,
+        items: prev.items.map((it) =>
+          it.id === id
+            ? {
+                ...it,
+                done: !it.done,
+                doneAt: it.done ? undefined : toNightMinutes(new Date()),
+              }
+            : it,
+        ),
+      }))
+    },
+    [mutate],
+  )
+
   const setBedtime = useCallback(
     (bedtime: number) => {
       mutate((prev) => ({ ...prev, bedtime }))
@@ -145,5 +163,14 @@ export function useTonightPlan(routines: RoutineTask[], defaultBedtime: number) 
     mutate((prev) => ({ ...prev, started: false }))
   }, [mutate])
 
-  return { plan, toggleIncluded, moveItem, addItem, setBedtime, start, backToEdit }
+  return {
+    plan,
+    toggleIncluded,
+    toggleDone,
+    moveItem,
+    addItem,
+    setBedtime,
+    start,
+    backToEdit,
+  }
 }

@@ -1,0 +1,119 @@
+import type { TonightPlan } from '../../types'
+import { buildSchedule } from '../../lib/scheduler'
+import { formatDuration, formatNightTime } from '../../lib/time'
+import type { AdhocInput } from '../../hooks/useTonightPlan'
+import { AdhocForm } from './AdhocForm'
+import { Timeline } from './Timeline'
+
+type Props = {
+  plan: TonightPlan
+  now: number
+  onToggleDone: (id: string) => void
+  onExclude: (id: string) => void
+  onAdd: (input: AdhocInput) => void
+  onEdit: () => void
+}
+
+export function ExecutionView({
+  plan,
+  now,
+  onToggleDone,
+  onExclude,
+  onAdd,
+  onEdit,
+}: Props) {
+  const included = plan.items.filter((it) => it.included)
+  const pending = included.filter((it) => !it.done)
+  const schedule = buildSchedule({ items: pending, now, bedtime: plan.bedtime })
+  const byId = new Map(plan.items.map((it) => [it.id, it]))
+
+  const allDone = included.length > 0 && pending.length === 0
+  const current = schedule.scheduled[0]
+  const currentItem = current ? byId.get(current.itemId) : undefined
+  const untilBedtime = plan.bedtime - now
+
+  return (
+    <section>
+      <h2>今夜のスケジュール</h2>
+      <p className="exec-header">
+        就寝まで {untilBedtime >= 0 ? formatDuration(untilBedtime) : '—(就寝時刻を過ぎています)'}
+        ・自由時間 合計 {formatDuration(schedule.freeTotalMin)}
+      </p>
+
+      {allDone ? (
+        <div className="celebration">
+          <p className="celebration-emoji">🎉</p>
+          <p className="celebration-title">おつかれさま!全部終わりました</p>
+          <p>
+            {untilBedtime > 0
+              ? `就寝まで自由時間 ${formatDuration(untilBedtime)}。堂々とどうぞ`
+              : '就寝時刻を過ぎています。ゆっくり休んでください'}
+          </p>
+        </div>
+      ) : (
+        currentItem &&
+        current && (
+          <div className="now-card">
+            {current.start > now ? (
+              <>
+                <p className="now-label">次は {formatNightTime(current.start)} から</p>
+                <p className="now-task">
+                  {currentItem.fixedStart !== undefined && '📌 '}
+                  {currentItem.name}
+                </p>
+                <p className="now-until">
+                  それまで自由時間 {formatDuration(current.start - now)}
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="now-label">いまやる</p>
+                <p className="now-task">
+                  {currentItem.fixedStart !== undefined && '📌 '}
+                  {currentItem.name}
+                </p>
+                <p className="now-until">
+                  {current.end >= now
+                    ? `${formatNightTime(current.end)} まで(残り ${formatDuration(current.end - now)})`
+                    : `終了予定 ${formatNightTime(current.end)} を過ぎています`}
+                </p>
+              </>
+            )}
+            <button
+              type="button"
+              className="btn-primary btn-large"
+              onClick={() => onToggleDone(currentItem.id)}
+            >
+              完了
+            </button>
+          </div>
+        )
+      )}
+
+      {included.length === 0 && (
+        <p className="placeholder">
+          今夜やるタスクがありません。「プランを編集」から選び直してください。
+        </p>
+      )}
+
+      <Timeline
+        plan={plan}
+        schedule={schedule}
+        currentItemId={currentItem?.id}
+        onToggleDone={onToggleDone}
+        onExclude={onExclude}
+      />
+
+      <details className="adhoc-details">
+        <summary>タスクを追加</summary>
+        <AdhocForm onAdd={onAdd} />
+      </details>
+
+      <div className="button-row">
+        <button type="button" onClick={onEdit}>
+          プランを編集
+        </button>
+      </div>
+    </section>
+  )
+}

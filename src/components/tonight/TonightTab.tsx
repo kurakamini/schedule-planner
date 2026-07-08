@@ -1,9 +1,9 @@
-import { toNightMinutes } from '../../lib/time'
+import { useNow } from '../../hooks/useNow'
 import { useRoutines } from '../../hooks/useRoutines'
 import { useSettings } from '../../hooks/useSettings'
 import { useTonightPlan } from '../../hooks/useTonightPlan'
+import { ExecutionView } from './ExecutionView'
 import { PlanEditor } from './PlanEditor'
-import { Timeline } from './Timeline'
 
 export function TonightTab() {
   const { settings } = useSettings()
@@ -11,13 +11,14 @@ export function TonightTab() {
   const {
     plan,
     toggleIncluded,
+    toggleDone,
     moveItem,
     addItem,
     setBedtime,
     start,
     backToEdit,
   } = useTonightPlan(routines, settings.defaultBedtime)
-  const now = toNightMinutes(new Date())
+  const now = useNow()
 
   if (!plan.started) {
     return (
@@ -33,14 +34,13 @@ export function TonightTab() {
   }
 
   return (
-    <section>
-      <h2>今夜のスケジュール</h2>
-      <Timeline plan={plan} now={now} />
-      <div className="button-row">
-        <button type="button" onClick={backToEdit}>
-          プランを編集
-        </button>
-      </div>
-    </section>
+    <ExecutionView
+      plan={plan}
+      now={now}
+      onToggleDone={toggleDone}
+      onExclude={toggleIncluded}
+      onAdd={addItem}
+      onEdit={backToEdit}
+    />
   )
 }

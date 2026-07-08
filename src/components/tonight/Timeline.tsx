@@ -1,6 +1,5 @@
 import type { PlanItem, TonightPlan } from '../../types'
-import { buildSchedule } from '../../lib/scheduler'
-import type { Warning } from '../../lib/scheduler'
+import type { ScheduleResult, Warning } from '../../lib/scheduler'
 import { formatDuration, formatNightTime } from '../../lib/time'
 
 type Row =
@@ -18,55 +17,97 @@ function warningText(w: Warning, byId: Map<string, PlanItem>): string {
   }
 }
 
-export function Timeline({ plan, now }: { plan: TonightPlan; now: number }) {
-  const targets = plan.items.filter((it) => it.included && !it.done)
-  const result = buildSchedule({ items: targets, now, bedtime: plan.bedtime })
+type Props = {
+  plan: TonightPlan
+  schedule: ScheduleResult
+  /** NOW カードに出ている「今やるタスク」。行を強調表示する */
+  currentItemId?: string
+  onToggleDone: (id: string) => void
+  onExclude: (id: string) => void
+}
+
+export function Timeline({
+  plan,
+  schedule,
+  currentItemId,
+  onToggleDone,
+  onExclude,
+}: Props) {
   const byId = new Map(plan.items.map((it) => [it.id, it]))
-  const overflow = new Set(result.overflowItemIds)
+  const overflow = new Set(schedule.overflowItemIds)
+
+  const doneItems = plan.items
+    .filter((it) => it.included && it.done)
+    .sort((a, b) => (a.doneAt ?? 0) - (b.doneAt ?? 0))
 
   const rows: Row[] = [
-    ...result.scheduled.map((s) => ({
+    ...schedule.scheduled.map((s) => ({
       kind: 'task' as const,
       start: s.start,
       end: s.end,
       item: byId.get(s.itemId)!,
       overflow: overflow.has(s.itemId),
     })),
-    ...result.gaps.map((g) => ({
+    ...schedule.gaps.map((g) => ({
       kind: 'free' as const,
       start: g.start,
       minutes: g.end - g.start,
     })),
   ]
-  if (result.freeAfterMin > 0) {
+  if (schedule.freeAfterMin > 0) {
     rows.push({
       kind: 'free',
-      start: plan.bedtime - result.freeAfterMin,
-      minutes: result.freeAfterMin,
+      start: plan.bedtime - schedule.freeAfterMin,
+      minutes: schedule.freeAfterMin,
     })
   }
   rows.sort((a, b) => a.start - b.start)
 
   return (
     <div className="timeline">
-      {result.warnings.length > 0 && (
+      {schedule.warnings.length > 0 && (
         <div className="warning-banner" role="alert">
-          {result.warnings.map((w, i) => (
+          {schedule.warnings.map((w, i) => (
             <p key={i}>⚠ {warningText(w, byId)}</p>
           ))}
         </div>
       )}
 
-      {rows.length === 0 ? (
+      {doneItems.length === 0 && rows.length === 0 ? (
         <p className="placeholder">表示するタスクがありません。</p>
       ) : (
         <ul className="tl-list">
+          {doneItems.map((item) => (
+            <li key={item.id} className="tl-row tl-done">
+              <input
+                type="checkbox"
+                checked
+                aria-label={`${item.name} の完了を取り消す`}
+                onChange={() => onToggleDone(item.id)}
+              />
+              <span className="tl-time">
+                {item.doneAt !== undefined
+                  ? `${formatNightTime(item.doneAt)} 完了`
+                  : '完了'}
+              </span>
+              <span className="tl-name">{item.name}</span>
+            </li>
+          ))}
+
           {rows.map((row) =>
             row.kind === 'task' ? (
               <li
                 key={row.item.id}
-                className={`tl-row${row.overflow ? ' tl-overflow' : ''}`}
+                className={`tl-row${row.overflow ? ' tl-overflow' : ''}${
+                  row.item.id === currentItemId ? ' tl-current' : ''
+                }`}
               >
+                <input
+                  type="checkbox"
+                  checked={false}
+                  aria-label={`${row.item.name} を完了にする`}
+                  onChange={() => onToggleDone(row.item.id)}
+                />
                 <span className="tl-time">
                   {formatNightTime(row.start)}〜{formatNightTime(row.end)}
                 </span>
@@ -74,21 +115,26 @@ export function Timeline({ plan, now }: { plan: TonightPlan; now: number }) {
                   {row.item.fixedStart !== undefined && '📌 '}
                   {row.item.name}
                 </span>
+                <button
+                  type="button"
+                  className="tl-exclude"
+                  aria-label={`${row.item.name} を外す`}
+                  onClick={() => onExclude(row.item.id)}
+                >
+                  外す
+                </button>
               </li>
             ) : (
               <li key={`free-${row.start}`} className="tl-row tl-free">
                 <span className="tl-time">{formatNightTime(row.start)}〜</span>
-                <span className="tl-name">自由時間 {formatDuration(row.minutes)}</span>
+                <span className="tl-name">
+                  自由時間 {formatDuration(row.minutes)}
+                </span>
               </li>
             ),
           )}
         </ul>
       )}
-
-      <p className="tl-summary">
-        自由時間 合計 {formatDuration(result.freeTotalMin)}・就寝{' '}
-        {formatNightTime(plan.bedtime)}
-      </p>
     </div>
   )
 }
