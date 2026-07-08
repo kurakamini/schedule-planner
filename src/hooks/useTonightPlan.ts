@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { PlanItem, RoutineTask, TonightPlan } from '../types'
+import { generateId } from '../lib/id'
 import { getNightKey, toNightMinutes } from '../lib/time'
 import { loadTonightPlan, saveTonightPlan } from '../lib/storage'
 
@@ -11,7 +12,7 @@ export type AdhocInput = {
 
 function routineToItem(r: RoutineTask, order: number): PlanItem {
   return {
-    id: crypto.randomUUID(),
+    id: generateId(),
     routineId: r.id,
     name: r.name,
     durationMin: r.durationMin,
@@ -120,7 +121,7 @@ export function useTonightPlan(routines: RoutineTask[], defaultBedtime: number) 
         items: renumber([
           ...prev.items,
           {
-            id: crypto.randomUUID(),
+            id: generateId(),
             name: input.name,
             durationMin: input.durationMin,
             fixedStart: input.fixedStart,

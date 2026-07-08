@@ -68,3 +68,26 @@ button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+
+/* クラッシュ時のフォールバック画面(ErrorBoundary) */
+.crash {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  text-align: center;
+}
+
+.crash h1 {
+  font-size: 1.2rem;
+}
+
+.crash-message {
+  color: var(--danger);
+  overflow-wrap: anywhere;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.85rem;
+  text-align: left;
+}

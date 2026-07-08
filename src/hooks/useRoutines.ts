@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
 import type { RoutineTask } from '../types'
+import { generateId } from '../lib/id'
 import { loadRoutines, saveRoutines } from '../lib/storage'
 
 export type RoutineInput = {
@@ -33,7 +34,7 @@ export function useRoutines() {
     (input: RoutineInput) => {
       mutate((prev) => [
         ...prev,
-        { ...input, id: crypto.randomUUID(), order: prev.length },
+        { ...input, id: generateId(), order: prev.length },
       ])
     },
     [mutate],
