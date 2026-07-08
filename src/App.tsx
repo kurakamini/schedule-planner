@@ -2,6 +2,7 @@ import { useState } from 'react'
 import './App.css'
 import { RoutinesTab } from './components/routines/RoutinesTab'
 import { SettingsTab } from './components/settings/SettingsTab'
+import { TonightTab } from './components/tonight/TonightTab'
 
 const TABS = [
   { key: 'tonight', label: '今夜' },
@@ -20,11 +21,7 @@ function App() {
         <h1>スケジュール計画立案</h1>
       </header>
       <main className="app-content">
-        {tab === 'tonight' && (
-          <p className="placeholder">
-            今夜のプラン作成はこれから実装します(T6)。
-          </p>
-        )}
+        {tab === 'tonight' && <TonightTab />}
         {tab === 'routines' && <RoutinesTab />}
         {tab === 'settings' && <SettingsTab />}
       </main>

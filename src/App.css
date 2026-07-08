@@ -121,6 +121,125 @@
   background: none;
 }
 
+/* ---- 今夜タブ: プラン作成 ---- */
+
+.plan-list {
+  list-style: none;
+  margin: 0 0 1.5rem;
+  padding: 0;
+}
+
+.plan-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.plan-excluded .plan-info {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+
+.plan-check {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1;
+  min-width: 0;
+  padding: 0.25rem 0;
+  cursor: pointer;
+}
+
+.plan-check input[type='checkbox'] {
+  min-height: 0;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+}
+
+.plan-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.adhoc-form {
+  border-top: 2px solid var(--border);
+  padding-top: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.adhoc-form h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+}
+
+.btn-large {
+  width: 100%;
+  min-height: 52px;
+  font-size: 1.1rem;
+}
+
+/* ---- 今夜タブ: タイムライン ---- */
+
+.warning-banner {
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 1rem;
+  color: var(--danger);
+}
+
+.warning-banner p {
+  margin: 0.15rem 0;
+  font-size: 0.9rem;
+}
+
+.tl-list {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+}
+
+.tl-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.tl-time {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-sub);
+  white-space: nowrap;
+  min-width: 7.2rem;
+}
+
+.tl-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.tl-free .tl-name {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.tl-overflow .tl-name,
+.tl-overflow .tl-time {
+  color: var(--danger);
+}
+
+.tl-summary {
+  color: var(--text-sub);
+  margin: 0 0 1rem;
+}
+
 /* ---- ルーチンタブ ---- */
 
 .routine-list {

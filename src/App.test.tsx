@@ -15,7 +15,9 @@ describe('App', () => {
     expect(
       screen.getByRole('button', { name: '今夜' }),
     ).toHaveAttribute('aria-current', 'page')
-    expect(screen.getByText(/今夜のプラン作成/)).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: '今夜のプラン' }),
+    ).toBeInTheDocument()
   })
 
   it('3 つのタブを切り替えられる', () => {
@@ -28,6 +30,8 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: '設定' })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: '今夜' }))
-    expect(screen.getByText(/今夜のプラン作成/)).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: '今夜のプラン' }),
+    ).toBeInTheDocument()
   })
 })
