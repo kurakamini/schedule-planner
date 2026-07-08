@@ -23,6 +23,7 @@ const plan: TonightPlan = {
   nightKey: '2026-07-08',
   bedtime: 1470,
   started: true,
+  anchorAt: 1270,
   items: [
     {
       id: 'i1',

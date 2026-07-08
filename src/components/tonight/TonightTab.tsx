@@ -15,6 +15,7 @@ export function TonightTab() {
     moveItem,
     addItem,
     setBedtime,
+    setAnchor,
     start,
     backToEdit,
   } = useTonightPlan(routines, settings.defaultBedtime)
@@ -28,6 +29,7 @@ export function TonightTab() {
         onMove={moveItem}
         onAdd={addItem}
         onSetBedtime={setBedtime}
+        onSetAnchor={setAnchor}
         onStart={start}
       />
     )

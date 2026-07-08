@@ -10,6 +10,7 @@ type Props = {
   onMove: (id: string, direction: -1 | 1) => void
   onAdd: (input: AdhocInput) => void
   onSetBedtime: (bedtime: number) => void
+  onSetAnchor: (anchorAt: number) => void
   onStart: () => void
 }
 
@@ -19,16 +20,30 @@ export function PlanEditor({
   onMove,
   onAdd,
   onSetBedtime,
+  onSetAnchor,
   onStart,
 }: Props) {
+  // 開始時刻: 初期値は現在時刻(プラン新規作成時に設定済み)。
+  // 再編集ではプランに保存された値がそのまま初期値になる
+  const [anchorDraft, setAnchorDraft] = useState(() =>
+    formatNightTime(plan.anchorAt),
+  )
   const [bedtimeDraft, setBedtimeDraft] = useState(() =>
     formatNightTime(plan.bedtime),
   )
+  const anchorParsed = parseNightTime(anchorDraft)
   const bedtimeParsed = parseNightTime(bedtimeDraft)
+  const anchorInvalid = anchorParsed === null
   const bedtimeInvalid = bedtimeParsed === null
 
   const items = [...plan.items].sort((a, b) => a.order - b.order)
   const includedCount = items.filter((it) => it.included).length
+
+  function handleAnchorChange(value: string) {
+    setAnchorDraft(value)
+    const parsed = parseNightTime(value)
+    if (parsed !== null) onSetAnchor(parsed)
+  }
 
   function handleBedtimeChange(value: string) {
     setBedtimeDraft(value)
@@ -40,26 +55,52 @@ export function PlanEditor({
     <section>
       <h2>今夜のプラン</h2>
 
-      <div className="field">
-        <label htmlFor="plan-bedtime">就寝時刻(今夜)</label>
-        <input
-          id="plan-bedtime"
-          className="time-input"
-          inputMode="numeric"
-          value={bedtimeDraft}
-          onChange={(e) => handleBedtimeChange(e.target.value)}
-          onBlur={() => {
-            if (bedtimeParsed !== null) {
-              setBedtimeDraft(formatNightTime(bedtimeParsed))
-            }
-          }}
-        />
-        {bedtimeInvalid && (
-          <p className="field-error" role="alert">
-            時刻を読み取れません。24:30 のように入力してください
-          </p>
-        )}
+      <div className="time-row">
+        <div className="field">
+          <label htmlFor="plan-anchor">開始時刻</label>
+          <input
+            id="plan-anchor"
+            className="time-input"
+            inputMode="numeric"
+            value={anchorDraft}
+            onChange={(e) => handleAnchorChange(e.target.value)}
+            onBlur={() => {
+              if (anchorParsed !== null) {
+                setAnchorDraft(formatNightTime(anchorParsed))
+              }
+            }}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="plan-bedtime">就寝時刻(今夜)</label>
+          <input
+            id="plan-bedtime"
+            className="time-input"
+            inputMode="numeric"
+            value={bedtimeDraft}
+            onChange={(e) => handleBedtimeChange(e.target.value)}
+            onBlur={() => {
+              if (bedtimeParsed !== null) {
+                setBedtimeDraft(formatNightTime(bedtimeParsed))
+              }
+            }}
+          />
+        </div>
       </div>
+      <p className="hint">
+        時刻は 2130 のようにコロンなしでも入力できます(深夜 0 時越えは 2430 =
+        24:30)
+      </p>
+      {anchorInvalid && (
+        <p className="field-error" role="alert">
+          開始時刻を読み取れません。2130 か 21:30 のように入力してください
+        </p>
+      )}
+      {bedtimeInvalid && (
+        <p className="field-error" role="alert">
+          就寝時刻を読み取れません。2430 か 24:30 のように入力してください
+        </p>
+      )}
 
       <h3>今夜やること</h3>
       {items.length === 0 ? (
@@ -125,7 +166,7 @@ export function PlanEditor({
       <button
         type="button"
         className="btn-primary btn-large"
-        disabled={includedCount === 0 || bedtimeInvalid}
+        disabled={includedCount === 0 || bedtimeInvalid || anchorInvalid}
         onClick={onStart}
       >
         スケジュールを作成

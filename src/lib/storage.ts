@@ -131,6 +131,7 @@ function isTonightPlan(v: unknown): v is TonightPlan {
     typeof v.nightKey === 'string' &&
     typeof v.bedtime === 'number' &&
     typeof v.started === 'boolean' &&
+    typeof v.anchorAt === 'number' &&
     Array.isArray(v.items) &&
     v.items.every(isPlanItem)
   )

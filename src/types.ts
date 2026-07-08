@@ -37,6 +37,12 @@ export type TonightPlan = {
   bedtime: number
   /** false=プラン作成ビュー / true=実行ビュー */
   started: boolean
+  /**
+   * スケジュールの起点(夜通算分)。プラン開始・完了チェックなど
+   * 「先頭タスクが変わる操作」の時刻で、時間経過や開き直しでは動かさない。
+   * これにより開始時刻がリロードでずれない
+   */
+  anchorAt: number
   items: PlanItem[]
 }
 

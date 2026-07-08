@@ -24,7 +24,14 @@ export function ExecutionView({
 }: Props) {
   const included = plan.items.filter((it) => it.included)
   const pending = included.filter((it) => !it.done)
-  const schedule = buildSchedule({ items: pending, now, bedtime: plan.bedtime })
+  // 配置はアンカー(開始時刻/最後の操作時点)を起点にする。
+  // now(現在時刻)は残り時間などのカウントダウン表示にだけ使い、
+  // 時間経過や開き直しでタイムラインの時刻が動かないようにする
+  const schedule = buildSchedule({
+    items: pending,
+    now: plan.anchorAt,
+    bedtime: plan.bedtime,
+  })
   const byId = new Map(plan.items.map((it) => [it.id, it]))
 
   const allDone = included.length > 0 && pending.length === 0

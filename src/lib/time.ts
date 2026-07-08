@@ -12,7 +12,9 @@ const DAY_MIN = 24 * 60
 const MAX_HOUR = 27
 
 /**
- * "HH:MM" 形式の文字列を夜通算分にする。不正な入力は null。
+ * 時刻文字列を夜通算分にする。不正な入力は null。
+ * "24:30" のコロン区切りに加え、"2430" のようなコロンなし 3〜4 桁も受け付ける
+ * (Android の数字キーボードにはコロンがないため。末尾 2 桁を分とみなす)。
  * "0:30" のような 0〜3 時台は翌日扱いに正規化する("0:30" → 1470)。
  * 全角数字・全角コロンも受け付ける。
  */
@@ -24,7 +26,9 @@ export function parseNightTime(input: string): number | null {
       String.fromCharCode(c.charCodeAt(0) - 0xfee0),
     )
     .replace(/：/g, ':')
-  const m = /^(\d{1,2}):(\d{2})$/.exec(normalized)
+  const m =
+    /^(\d{1,2}):(\d{2})$/.exec(normalized) ??
+    /^(\d{1,2})(\d{2})$/.exec(normalized)
   if (!m) return null
   const hours = Number(m[1])
   const minutes = Number(m[2])

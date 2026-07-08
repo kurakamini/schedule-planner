@@ -68,7 +68,7 @@ export function AdhocForm({ onAdd }: { onAdd: (input: AdhocInput) => void }) {
         />
         {fixedInvalid && (
           <p className="field-error" role="alert">
-            時刻を読み取れません。22:00 のように入力してください
+            時刻を読み取れません。2200 か 22:00 のように入力してください
           </p>
         )}
       </div>

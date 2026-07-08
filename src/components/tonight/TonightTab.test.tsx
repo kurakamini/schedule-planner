@@ -44,11 +44,12 @@ const nowCardTask = () =>
   document.querySelector('.now-card .now-task')?.textContent
 
 describe('TonightTab: プラン作成ビュー', () => {
-  it('ルーチン全件が選択済みで並び、就寝時刻はデフォルト値', () => {
+  it('ルーチン全件が選択済みで並び、開始時刻は現在時刻・就寝時刻はデフォルト値', () => {
     render(<TonightTab />)
     expect(
       screen.getByRole('heading', { name: '今夜のプラン' }),
     ).toBeInTheDocument()
+    expect(screen.getByLabelText('開始時刻')).toHaveValue('21:10')
     expect(screen.getByLabelText('就寝時刻(今夜)')).toHaveValue('24:30')
 
     const checks = screen.getAllByRole('checkbox')
@@ -223,17 +224,59 @@ describe('TonightTab: 実行ビュー', () => {
     expect(tlRows().join('')).toContain('ストレッチ')
   })
 
-  it('固定予定の前の空き時間は「次は◯◯から」と案内する', () => {
-    renderStarted()
-    // 21:50 まで進める: 夕食(30 分)は 22:00 の配信前に収まらない
+  it('時間が過ぎてもタイムラインの時刻は動かず、終了予定の超過を知らせる', () => {
+    renderStarted() // 21:10 開始
     vi.setSystemTime(new Date(2026, 6, 8, 21, 50))
     act(() => {
       vi.advanceTimersByTime(30_000)
     })
 
+    // 配置は開始時刻(21:10)起点のまま
+    expect(tlRows()[0]).toBe('21:10〜21:40夕食')
+    expect(nowCardTask()).toBe('夕食')
+    expect(
+      screen.getByText('終了予定 21:40 を過ぎています'),
+    ).toBeInTheDocument()
+  })
+
+  it('開き直しても開始時刻がずれない(アンカー保持)', () => {
+    const view = renderStarted() // 21:10 開始
+    vi.setSystemTime(new Date(2026, 6, 8, 21, 25))
+    view.unmount()
+    render(<TonightTab />) // 21:25 に開き直す
+
+    expect(tlRows()[0]).toBe('21:10〜21:40夕食')
+    expect(screen.getByText('21:40 まで(残り 15分)')).toBeInTheDocument()
+  })
+
+  it('遅れて完了すると以降は完了時刻から引き直され、固定予定待ちは「次は◯◯から」', () => {
+    renderStarted() // 21:10 開始
+    vi.setSystemTime(new Date(2026, 6, 8, 21, 50))
+    act(() => {
+      vi.advanceTimersByTime(30_000)
+    })
+    fireEvent.click(screen.getByRole('button', { name: '完了' })) // 夕食を 21:50 に完了
+
+    // 風呂(30 分)は 22:00 の配信前に収まらない → 配信待ちになる
+    expect(tlRows()[0]).toBe('21:50 完了夕食')
     expect(screen.getByText('次は 22:00 から')).toBeInTheDocument()
     expect(nowCardTask()).toBe('📌 配信')
     expect(screen.getByText('それまで自由時間 10分')).toBeInTheDocument()
+  })
+
+  it('開始時刻を入力して組め、再編集でも保持される(コロンなし入力対応)', () => {
+    render(<TonightTab />)
+    fireEvent.change(screen.getByLabelText('開始時刻'), {
+      target: { value: '2130' }, // コロンなし入力
+    })
+    fireEvent.click(createButton())
+
+    expect(tlRows()[0]).toBe('21:30〜22:00夕食')
+    // 現在(21:10)より未来なので待ち表示になる
+    expect(screen.getByText('次は 21:30 から')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'プランを編集' }))
+    expect(screen.getByLabelText('開始時刻')).toHaveValue('21:30')
   })
 
   it('全タスク完了でご褒美画面になる', () => {
@@ -257,6 +300,7 @@ describe('TonightTab: 夜の切り替わり(F5)', () => {
     nightKey: '2026-07-07',
     bedtime: 1470,
     started: true,
+    anchorAt: 1270,
     items: [
       {
         id: 'i1',

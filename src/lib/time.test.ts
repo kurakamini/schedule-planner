@@ -28,6 +28,21 @@ describe('parseNightTime', () => {
     expect(parseNightTime('4:00')).toBe(240)
   })
 
+  it('コロンなしの 3〜4 桁を受け付ける(スマホの数字キーボード対応)', () => {
+    expect(parseNightTime('2430')).toBe(1470)
+    expect(parseNightTime('2130')).toBe(1290)
+    expect(parseNightTime('930')).toBe(570) // 9:30
+    expect(parseNightTime('030')).toBe(1470) // 0:30 → 24:30 扱い
+    expect(parseNightTime('２４３０')).toBe(1470)
+  })
+
+  it('コロンなしでも不正な値は null', () => {
+    expect(parseNightTime('2860')).toBeNull() // 28 時
+    expect(parseNightTime('2199')).toBeNull() // 99 分
+    expect(parseNightTime('12345')).toBeNull()
+    expect(parseNightTime('99')).toBeNull() // 桁不足
+  })
+
   it('前後の空白と全角文字を許容する', () => {
     expect(parseNightTime(' 24:30 ')).toBe(1470)
     expect(parseNightTime('２４：３０')).toBe(1470) // 全角数字+全角コロン

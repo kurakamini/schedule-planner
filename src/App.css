@@ -123,6 +123,15 @@
 
 /* ---- 今夜タブ: プラン作成 ---- */
 
+.time-row {
+  display: flex;
+  gap: 1rem;
+}
+
+.time-row .field {
+  margin-bottom: 0.5rem;
+}
+
 .plan-list {
   list-style: none;
   margin: 0 0 1.5rem;

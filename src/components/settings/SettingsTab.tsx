@@ -37,7 +37,8 @@ export function SettingsTab() {
         <div className="field">
           <label htmlFor="default-bedtime">デフォルト就寝時刻</label>
           <p className="hint">
-            深夜 0 時を越える場合は 24:30、25:00 のように入力
+            コロンなし(2430)でも入力可。深夜 0 時を越える場合は 24:30、25:00
+            の表記
           </p>
           <input
             id="default-bedtime"
@@ -51,7 +52,7 @@ export function SettingsTab() {
           />
           {invalid && (
             <p className="field-error" role="alert">
-              時刻を読み取れません。24:30 のように入力してください
+              時刻を読み取れません。2430 か 24:30 のように入力してください
             </p>
           )}
           {saved && <p className="feedback">保存しました</p>}

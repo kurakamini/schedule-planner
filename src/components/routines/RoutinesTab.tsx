@@ -153,7 +153,8 @@ export function RoutinesTab() {
         <div className="field">
           <label htmlFor="routine-fixed">固定開始時刻(任意)</label>
           <p className="hint">
-            「22:00 から配信」のような時刻固定の予定だけ入力。空欄なら順に配置
+            「22:00 から配信」のような時刻固定の予定だけ入力(2200
+            のようにコロンなしでも可)。空欄なら順に配置
           </p>
           <input
             id="routine-fixed"
@@ -165,7 +166,7 @@ export function RoutinesTab() {
           />
           {fixedStartInvalid && (
             <p className="field-error" role="alert">
-              時刻を読み取れません。22:00 のように入力してください
+              時刻を読み取れません。2200 か 22:00 のように入力してください
             </p>
           )}
         </div>
