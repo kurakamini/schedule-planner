@@ -2,25 +2,19 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import type { RoutineTask } from '../../types'
 import { formatNightTime, parseNightTime } from '../../lib/time'
+import { parseDurationMin } from '../../lib/duration'
 import { useRoutines } from '../../hooks/useRoutines'
 
 type FormState = { name: string; duration: string; fixedStart: string }
 
 const EMPTY_FORM: FormState = { name: '', duration: '', fixedStart: '' }
 
-/** 所要時間: 1〜999 の整数のみ許可 */
-function parseDuration(input: string): number | null {
-  if (!/^\d{1,3}$/.test(input.trim())) return null
-  const n = Number(input.trim())
-  return n >= 1 ? n : null
-}
-
 export function RoutinesTab() {
   const { routines, add, update, remove, move } = useRoutines()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
 
-  const duration = parseDuration(form.duration)
+  const duration = parseDurationMin(form.duration)
   const wantsFixed = form.fixedStart.trim() !== ''
   const fixedStart = wantsFixed ? parseNightTime(form.fixedStart) : undefined
   const nameInvalid = form.name.trim() === ''
@@ -35,7 +29,7 @@ export function RoutinesTab() {
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    if (!canSubmit) return
+    if (!canSubmit || duration === null) return
     const input = {
       name: form.name.trim(),
       durationMin: duration,

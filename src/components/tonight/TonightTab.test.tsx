@@ -125,6 +125,27 @@ describe('TonightTab: プラン作成ビュー', () => {
     expect(container.querySelectorAll('.tl-overflow')).toHaveLength(2) // 風呂・英語
   })
 
+  it('開始時刻が就寝時刻以降だと作成できず、理由が表示される', () => {
+    render(<TonightTab />)
+    // 開始 25:00 > 就寝 24:30 の逆転(コロンなし入力)
+    fireEvent.change(screen.getByLabelText('開始時刻'), {
+      target: { value: '2500' },
+    })
+    expect(
+      screen.getByText('開始時刻は就寝時刻より前にしてください'),
+    ).toBeInTheDocument()
+    expect(createButton()).toBeDisabled()
+
+    // 開始を就寝より前に戻せば作成できる
+    fireEvent.change(screen.getByLabelText('開始時刻'), {
+      target: { value: '2300' },
+    })
+    expect(
+      screen.queryByText('開始時刻は就寝時刻より前にしてください'),
+    ).not.toBeInTheDocument()
+    expect(createButton()).not.toBeDisabled()
+  })
+
   it('「プランを編集」で作成ビューに戻り、選択状態は保持される', () => {
     render(<TonightTab />)
     fireEvent.click(screen.getByRole('checkbox', { name: /風呂/ }))

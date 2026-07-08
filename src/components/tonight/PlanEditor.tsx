@@ -35,6 +35,11 @@ export function PlanEditor({
   const bedtimeParsed = parseNightTime(bedtimeDraft)
   const anchorInvalid = anchorParsed === null
   const bedtimeInvalid = bedtimeParsed === null
+  // 開始時刻が就寝時刻以降だとスケジュールが成立しない(表示も矛盾する)ため弾く
+  const orderInvalid =
+    anchorParsed !== null &&
+    bedtimeParsed !== null &&
+    anchorParsed >= bedtimeParsed
 
   const items = [...plan.items].sort((a, b) => a.order - b.order)
   const includedCount = items.filter((it) => it.included).length
@@ -99,6 +104,11 @@ export function PlanEditor({
       {bedtimeInvalid && (
         <p className="field-error" role="alert">
           就寝時刻を読み取れません。2430 か 24:30 のように入力してください
+        </p>
+      )}
+      {orderInvalid && (
+        <p className="field-error" role="alert">
+          開始時刻は就寝時刻より前にしてください
         </p>
       )}
 
@@ -166,7 +176,9 @@ export function PlanEditor({
       <button
         type="button"
         className="btn-primary btn-large"
-        disabled={includedCount === 0 || bedtimeInvalid || anchorInvalid}
+        disabled={
+          includedCount === 0 || bedtimeInvalid || anchorInvalid || orderInvalid
+        }
         onClick={onStart}
       >
         スケジュールを作成

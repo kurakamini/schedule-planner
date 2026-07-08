@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { parseNightTime } from '../../lib/time'
+import { parseDurationMin } from '../../lib/duration'
 import type { AdhocInput } from '../../hooks/useTonightPlan'
 
 /** 今日だけのタスク追加フォーム(ルーチンには登録しない)。作成ビューと実行ビューで共用 */
@@ -9,10 +10,8 @@ export function AdhocForm({ onAdd }: { onAdd: (input: AdhocInput) => void }) {
   const [duration, setDuration] = useState('')
   const [fixedStart, setFixedStart] = useState('')
 
-  const durationParsed = /^\d{1,3}$/.test(duration.trim())
-    ? Number(duration.trim())
-    : null
-  const durationInvalid = durationParsed === null || durationParsed < 1
+  const durationParsed = parseDurationMin(duration)
+  const durationInvalid = durationParsed === null
   const wantsFixed = fixedStart.trim() !== ''
   const fixedParsed = wantsFixed ? parseNightTime(fixedStart) : undefined
   const fixedInvalid = wantsFixed && fixedParsed === null
@@ -20,7 +19,7 @@ export function AdhocForm({ onAdd }: { onAdd: (input: AdhocInput) => void }) {
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    if (!canSubmit) return
+    if (!canSubmit || durationParsed === null) return
     onAdd({
       name: name.trim(),
       durationMin: durationParsed,
