@@ -45,6 +45,10 @@
 
 ## 知見メモ
 
-- スマホから繋がらないときは、Windows ファイアウォールで Node.js の「プライベートネットワーク」通信許可を確認する
+- スマホから繋がらないとき: Windows ファイアウォールで Node.js の通信許可を確認。ネットワーク種別(Public/Private)が切り替わると許可がずれるので、繋がっていたのに急に不通になったらここを疑う
 - PC の IP は DHCP で変わりうる。`npm run dev` 起動時に表示される Network の URL を正とする
 - create-vite の最新テンプレートはリントが ESLint ではなく oxlint(設定は .oxlintrc.json)
+- `crypto.randomUUID()` は HTTPS/localhost 限定。`http://IP` アクセスのスマホでは存在せず落ちるため、`crypto.getRandomValues` ベースの自前 ID 生成を使う(src/lib/id.ts)
+- スマホの数字キーボード(`inputMode="numeric"`)はコロンが打てない。時刻入力は「2430」等のコロンなし桁も受け付ける
+- localhost 開発では実機特有の問題(crypto・キーボード・http オリジン)が顕在化しない。機能一式が揃ったら必ず Android 実機で通し確認する
+- localStorage はオリジン(IP:ポート)単位。PC の IP 変更や dev/preview のポート差でデータが別物になる(preview は 5173 に固定済み)
