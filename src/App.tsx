@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import './App.css'
+import { RoutinesTab } from './components/routines/RoutinesTab'
 import { SettingsTab } from './components/settings/SettingsTab'
 
 const TABS = [
@@ -24,9 +25,7 @@ function App() {
             今夜のプラン作成はこれから実装します(T6)。
           </p>
         )}
-        {tab === 'routines' && (
-          <p className="placeholder">ルーチン管理はこれから実装します(T5)。</p>
-        )}
+        {tab === 'routines' && <RoutinesTab />}
         {tab === 'settings' && <SettingsTab />}
       </main>
       <nav className="tab-bar" aria-label="メインタブ">

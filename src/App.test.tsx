@@ -22,7 +22,7 @@ describe('App', () => {
     render(<App />)
 
     fireEvent.click(screen.getByRole('button', { name: 'ルーチン' }))
-    expect(screen.getByText(/ルーチン管理/)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'ルーチン' })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: '設定' }))
     expect(screen.getByRole('heading', { name: '設定' })).toBeInTheDocument()
