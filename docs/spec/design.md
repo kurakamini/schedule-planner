@@ -168,8 +168,18 @@ function buildSchedule(input: {
 
 ## リスク・懸念
 
-- **PC の IP が変わると localStorage が別物になる**(オリジン単位のため)。対策: ルータの DHCP 予約で PC の IP を固定することを README に記載。データ自体は消えないが、旧 IP のオリジンに残り見えなくなる点に注意
+- ~~PC の IP が変わると localStorage が別物になる~~ → GitHub Pages 公開で URL が固定され解消(2026-07-09)。localStorage がオリジン単位である点は不変なので、端末やブラウザを変えるとデータは別になる
 - ブラウザの「サイトデータ消去」でデータが消える(README に明記)
 - 通知は出せない(スコープ外で確定済み)。画面を見に行く運用が前提
-- `npm run dev` 常用は開発サーバのため多少重い。動作が気になったら `npm run build` + `npm run preview` に切り替える(コマンドは同じ LAN 公開設定済み)
+- ~~`npm run dev` 常用は多少重い~~ → GitHub Pages 公開で常時起動が不要になった(2026-07-09)
 - スマホと PC の時計ずれ: 計算はスマホ(ブラウザ)側の時計だけで行うため実害なし
+
+## デプロイ(2026-07-09 追記)
+
+当初スコープ外だったが、毎回ローカルサーバを立ち上げる手間を無くすため GitHub Pages に公開した。
+
+- 公開 URL: https://kurakamini.github.io/schedule-planner/(リポジトリ: kurakamini/schedule-planner, public)
+- `main` への push で `.github/workflows/deploy.yml` が build → Pages に自動デプロイ
+- `vite.config` は本番ビルドのみ `base='/schedule-planner/'`、dev/preview はルート(ローカル運用を維持)
+- データは従来どおり端末の localStorage のみ(静的ホスティングのためサーバに送信されない)
+- 未実施: PWA 化(ホーム画面スタンドアロン起動・オフライン)。通知は引き続きスコープ外

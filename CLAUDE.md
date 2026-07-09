@@ -6,8 +6,8 @@
 目的は帰宅後の YouTube ダラ見による時間の浪費を減らすこと。
 
 - 利用者: 本人のみ(Android スマホから利用)
-- 利用方法: PC で開発サーバを起動し、同じ自宅 Wi-Fi のスマホから `http://<PCのIP>:5173` を開く
-- 制約: 完全ローカル運用。データは端末のブラウザ内にのみ保存し、外部に送信しない
+- 利用方法: GitHub Pages に公開済み。スマホから https://kurakamini.github.io/schedule-planner/ を開く(ローカル開発は `npm run dev` でも可)
+- 制約: データは端末のブラウザ内にのみ保存し、外部に送信しない(静的ホスティングのためサーバにデータは行かない)
 
 ## 技術スタック
 
@@ -52,3 +52,4 @@
 - スマホの数字キーボード(`inputMode="numeric"`)はコロンが打てない。時刻入力は「2430」等のコロンなし桁も受け付ける
 - localhost 開発では実機特有の問題(crypto・キーボード・http オリジン)が顕在化しない。機能一式が揃ったら必ず Android 実機で通し確認する
 - localStorage はオリジン(IP:ポート)単位。PC の IP 変更や dev/preview のポート差でデータが別物になる(preview は 5173 に固定済み)
+- 公開は GitHub Pages(https://kurakamini.github.io/schedule-planner/)。main への push で `.github/workflows/deploy.yml` が build → 自動デプロイ。vite.config は本番ビルドのみ base='/schedule-planner/'、dev/preview はルート(ローカル運用を維持)
