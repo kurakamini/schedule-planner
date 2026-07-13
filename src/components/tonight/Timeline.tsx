@@ -1,5 +1,6 @@
 import type { PlanItem, TonightPlan } from '../../types'
 import type { ScheduleResult, Warning } from '../../lib/scheduler'
+import { deltaClass, formatDelta, itemDelta } from '../../lib/rta'
 import { formatDuration, formatNightTime } from '../../lib/time'
 
 type Row =
@@ -77,22 +78,31 @@ export function Timeline({
         <p className="placeholder">表示するタスクがありません。</p>
       ) : (
         <ul className="tl-list">
-          {doneItems.map((item) => (
-            <li key={item.id} className="tl-row tl-done">
-              <input
-                type="checkbox"
-                checked
-                aria-label={`${item.name} の完了を取り消す`}
-                onChange={() => onToggleDone(item.id)}
-              />
-              <span className="tl-time">
-                {item.doneAt !== undefined
-                  ? `${formatNightTime(item.doneAt)} 完了`
-                  : '完了'}
-              </span>
-              <span className="tl-name">{item.name}</span>
-            </li>
-          ))}
+          {doneItems.map((item) => {
+            // RTA 風の予定比: 完了時刻 − 開始時に凍結した予定終了
+            const delta = itemDelta(plan, item)
+            return (
+              <li key={item.id} className="tl-row tl-done">
+                <input
+                  type="checkbox"
+                  checked
+                  aria-label={`${item.name} の完了を取り消す`}
+                  onChange={() => onToggleDone(item.id)}
+                />
+                <span className="tl-time">
+                  {item.doneAt !== undefined
+                    ? `${formatNightTime(item.doneAt)} 完了`
+                    : '完了'}
+                </span>
+                <span className="tl-name">{item.name}</span>
+                {delta !== null && (
+                  <span className={`tl-delta delta ${deltaClass(delta)}`}>
+                    {formatDelta(delta)}
+                  </span>
+                )}
+              </li>
+            )
+          })}
 
           {rows.map((row) =>
             row.kind === 'task' ? (

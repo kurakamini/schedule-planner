@@ -125,6 +125,13 @@ function isPlanItem(v: unknown): v is PlanItem {
   )
 }
 
+function isBaselineEnds(v: unknown): boolean {
+  return (
+    v === undefined ||
+    (isRecord(v) && Object.values(v).every((end) => typeof end === 'number'))
+  )
+}
+
 function isTonightPlan(v: unknown): v is TonightPlan {
   return (
     isRecord(v) &&
@@ -133,6 +140,7 @@ function isTonightPlan(v: unknown): v is TonightPlan {
     typeof v.started === 'boolean' &&
     typeof v.anchorAt === 'number' &&
     Array.isArray(v.items) &&
-    v.items.every(isPlanItem)
+    v.items.every(isPlanItem) &&
+    isBaselineEnds(v.baselineEnds)
   )
 }

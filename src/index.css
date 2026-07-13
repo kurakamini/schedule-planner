@@ -9,6 +9,7 @@
   --accent: light-dark(#2563eb, #7ab5ff);
   --accent-contrast: light-dark(#ffffff, #101216);
   --danger: light-dark(#dc2626, #f87171);
+  --good: light-dark(#16a34a, #4ade80);
 
   font-family:
     system-ui,

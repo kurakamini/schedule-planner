@@ -103,6 +103,27 @@ function catchUpAnchor(plan: TonightPlan): TonightPlan {
   return plan.anchorAt < now ? { ...plan, anchorAt: now } : plan
 }
 
+/**
+ * RTA 表示の基準タイムを凍結する。開始時点の配置から各タスクの予定終了を記録し、
+ * 実行中は「基準 vs 実績」で予定比(±)を出す(完了による再配置では基準を動かさない)。
+ * 再編集からの開始では未完了分だけ引き直し、完了済みの基準(過去の実績比較)は保持する
+ */
+function snapshotBaseline(prev: TonightPlan): Record<string, number> {
+  const pending = prev.items.filter((it) => it.included && !it.done)
+  const { scheduled } = buildSchedule({
+    items: pending,
+    now: prev.anchorAt,
+    bedtime: prev.bedtime,
+  })
+  const next: Record<string, number> = {}
+  for (const it of prev.items) {
+    const kept = prev.baselineEnds?.[it.id]
+    if (it.done && kept !== undefined) next[it.id] = kept
+  }
+  for (const s of scheduled) next[s.itemId] = s.end
+  return next
+}
+
 export function useTonightPlan(routines: RoutineTask[], defaultBedtime: number) {
   const [plan, setPlan] = useState<TonightPlan>(() =>
     catchUpAnchor(syncWithRoutines(loadTonightPlan(), routines, defaultBedtime)),
@@ -225,7 +246,11 @@ export function useTonightPlan(routines: RoutineTask[], defaultBedtime: number) 
 
   // 開始時刻は入力欄の値(anchorAt)をそのまま使うため、ここでは再スタンプしない
   const start = useCallback(() => {
-    mutate((prev) => ({ ...prev, started: true }))
+    mutate((prev) => ({
+      ...prev,
+      started: true,
+      baselineEnds: snapshotBaseline(prev),
+    }))
   }, [mutate])
 
   const backToEdit = useCallback(() => {
