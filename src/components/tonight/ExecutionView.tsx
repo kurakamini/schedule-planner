@@ -1,5 +1,6 @@
 import type { TonightPlan } from '../../types'
 import { buildSchedule } from '../../lib/scheduler'
+import { deltaClass, formatDelta, overallDelta } from '../../lib/rta'
 import { formatDuration, formatNightTime } from '../../lib/time'
 import type { AdhocInput } from '../../hooks/useTonightPlan'
 import { AdhocForm } from './AdhocForm'
@@ -38,6 +39,8 @@ export function ExecutionView({
   const current = schedule.scheduled[0]
   const currentItem = current ? byId.get(current.itemId) : undefined
   const untilBedtime = plan.bedtime - now
+  // RTA 風の予定比: 開始時に凍結した基準タイムと現在の終了見込みの差
+  const delta = overallDelta(plan, schedule)
 
   return (
     <section>
@@ -45,6 +48,14 @@ export function ExecutionView({
       <p className="exec-header">
         就寝まで {untilBedtime >= 0 ? formatDuration(untilBedtime) : '—(就寝時刻を過ぎています)'}
         ・自由時間 合計 {formatDuration(schedule.freeTotalMin)}
+        {delta !== null && (
+          <>
+            ・予定比{' '}
+            <span className={`delta ${deltaClass(delta)}`}>
+              {formatDelta(delta)}
+            </span>
+          </>
+        )}
       </p>
 
       {allDone ? (

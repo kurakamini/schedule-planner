@@ -44,6 +44,12 @@ export type TonightPlan = {
    */
   anchorAt: number
   items: PlanItem[]
+  /**
+   * RTA 風「予定比」表示の基準タイム: itemId → 予定終了時刻(夜通算分)。
+   * スケジュール開始時に凍結する(完了による再配置では動かさない)。
+   * この機能より前に開始したプランには存在しないので optional
+   */
+  baselineEnds?: Record<string, number>
 }
 
 export type Settings = {

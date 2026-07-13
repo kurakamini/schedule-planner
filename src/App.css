@@ -360,6 +360,31 @@
   margin: 0 0 1rem;
 }
 
+/* RTA 風の予定比(緑=先行 / 赤=遅れ / グレー=同着) */
+.delta {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.delta-ahead {
+  color: var(--good);
+}
+
+.delta-behind {
+  color: var(--danger);
+}
+
+.delta-even {
+  color: var(--text-sub);
+}
+
+.tl-delta {
+  margin-left: auto;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
 /* ---- ルーチンタブ ---- */
 
 .routine-list {
