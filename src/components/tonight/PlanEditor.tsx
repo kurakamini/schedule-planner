@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { TonightPlan } from '../../types'
 import { formatNightTime, parseNightTime } from '../../lib/time'
 import type { AdhocInput } from '../../hooks/useTonightPlan'
@@ -31,6 +31,16 @@ export function PlanEditor({
   const [bedtimeDraft, setBedtimeDraft] = useState(() =>
     formatNightTime(plan.bedtime),
   )
+
+  // 画面復帰時の追従などフック側で anchorAt が変わった時に入力欄へ反映する。
+  // 入力中(ドラフトが同じ値にパースされる時)は書き換えず、打ちかけを壊さない
+  useEffect(() => {
+    setAnchorDraft((draft) =>
+      parseNightTime(draft) === plan.anchorAt
+        ? draft
+        : formatNightTime(plan.anchorAt),
+    )
+  }, [plan.anchorAt])
   const anchorParsed = parseNightTime(anchorDraft)
   const bedtimeParsed = parseNightTime(bedtimeDraft)
   const anchorInvalid = anchorParsed === null

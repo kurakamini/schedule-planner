@@ -159,6 +159,41 @@ describe('TonightTab: プラン作成ビュー', () => {
     expect(screen.getByRole('checkbox', { name: /夕食/ })).toBeChecked()
   })
 
+  it('作成ビューのまま開き直すと、過去になった開始時刻は現在時刻へ追従する', () => {
+    const view = render(<TonightTab />) // 21:10 に開いた
+    fireEvent.click(screen.getByRole('checkbox', { name: /風呂/ })) // 調整を保存
+    view.unmount()
+
+    vi.setSystemTime(new Date(2026, 6, 8, 22, 0))
+    render(<TonightTab />) // 22:00 に開き直す
+
+    expect(screen.getByLabelText('開始時刻')).toHaveValue('22:00')
+    // 当夜の調整(チェック状態)は保持される
+    expect(screen.getByRole('checkbox', { name: /風呂/ })).not.toBeChecked()
+  })
+
+  it('未来に設定した開始時刻は開き直しても保持される(帰宅前の仕込み)', () => {
+    const view = render(<TonightTab />)
+    fireEvent.change(screen.getByLabelText('開始時刻'), {
+      target: { value: '2300' },
+    })
+    view.unmount()
+
+    vi.setSystemTime(new Date(2026, 6, 8, 21, 30))
+    render(<TonightTab />) // まだ 23:00 より前
+
+    expect(screen.getByLabelText('開始時刻')).toHaveValue('23:00')
+  })
+
+  it('リロードなしで画面に戻ってきた時も開始時刻が追従する', () => {
+    render(<TonightTab />) // 21:10 に開いた
+    vi.setSystemTime(new Date(2026, 6, 8, 21, 45))
+    fireEvent(document, new Event('visibilitychange')) // 21:45 に画面復帰
+
+    expect(screen.getByLabelText('開始時刻')).toHaveValue('21:45')
+    expect(loadTonightPlan()?.anchorAt).toBe(21 * 60 + 45)
+  })
+
   it('あとから登録したルーチンが作成ビューに取り込まれる(当夜の調整は保持)', () => {
     const view = render(<TonightTab />)
     fireEvent.click(screen.getByRole('checkbox', { name: /風呂/ })) // 保存を発生させる

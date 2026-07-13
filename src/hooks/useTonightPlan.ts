@@ -58,7 +58,8 @@ function reanchor(prev: TonightPlan, nextItems: PlanItem[]): number {
  * 夜が変わっていたら(nightKey 不一致)前夜のプランを破棄して作り直す(F5)。
  * 深夜 0 時を過ぎても朝 4 時までは同じ夜として扱う。
  * 作成ビュー表示中(started: false)は、あとから登録されたルーチンを末尾に取り込む
- * (当夜の調整=チェック・並び順・当日タスク・開始時刻はそのまま残す)。
+ * (当夜の調整=チェック・並び順・当日タスクはそのまま残す。
+ * 開始時刻の開き直し時の追従は catchUpAnchor が担当)。
  */
 function syncWithRoutines(
   stored: TonightPlan | null,
@@ -91,10 +92,37 @@ function syncWithRoutines(
   }
 }
 
+/**
+ * 開き直し(マウント・画面復帰)時に開始時刻を現在へ追従させる。
+ * 作成ビュー中(started: false)で開始時刻が過去になっていたら現在時刻に進める。
+ * 未来に設定した値(帰宅前の仕込み)と実行中のアンカーは動かさない。
+ */
+function catchUpAnchor(plan: TonightPlan): TonightPlan {
+  if (plan.started) return plan
+  const now = toNightMinutes(new Date())
+  return plan.anchorAt < now ? { ...plan, anchorAt: now } : plan
+}
+
 export function useTonightPlan(routines: RoutineTask[], defaultBedtime: number) {
   const [plan, setPlan] = useState<TonightPlan>(() =>
-    syncWithRoutines(loadTonightPlan(), routines, defaultBedtime),
+    catchUpAnchor(syncWithRoutines(loadTonightPlan(), routines, defaultBedtime)),
   )
+
+  // スマホはリロードなしでブラウザに戻ることが多く、マウント時だけでは
+  // 開始時刻が古いままになるため、画面復帰時にも追従させる
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return
+      setPlan((prev) => {
+        const next = catchUpAnchor(prev)
+        if (next !== prev) saveTonightPlan(next)
+        return next
+      })
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () =>
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+  }, [])
 
   // ルーチンの後追い登録を作成ビューに反映する。
   // 同期結果は毎回保存し、表示中のプランとストレージを常に一致させる
