@@ -360,6 +360,32 @@
   margin: 0 0 1rem;
 }
 
+/* シーン切り替えチップ */
+.scene-switcher {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+  margin: 0 0 0.75rem;
+}
+
+.scene-chip {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: none;
+  padding: 0.3rem 0.95rem;
+  min-height: 36px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.scene-chip-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 600;
+}
+
 /* RTA 風の予定比(緑=先行 / 赤=遅れ / グレー=同着) */
 .delta {
   font-weight: 700;

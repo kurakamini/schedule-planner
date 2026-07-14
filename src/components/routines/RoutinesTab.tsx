@@ -1,16 +1,33 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import type { RoutineTask } from '../../types'
+import type { RoutineTask, Scene } from '../../types'
 import { formatNightTime, parseNightTime } from '../../lib/time'
 import { parseDurationMin } from '../../lib/duration'
 import { useRoutines } from '../../hooks/useRoutines'
+import { useScenes } from '../../hooks/useScenes'
+import { SceneSwitcher } from '../SceneSwitcher'
 
 type FormState = { name: string; duration: string; fixedStart: string }
 
 const EMPTY_FORM: FormState = { name: '', duration: '', fixedStart: '' }
 
 export function RoutinesTab() {
-  const { routines, add, update, remove, move } = useRoutines()
+  const { scenes, currentScene, selectScene } = useScenes()
+  return (
+    <>
+      <SceneSwitcher
+        scenes={scenes}
+        currentSceneId={currentScene.id}
+        onSelect={selectScene}
+      />
+      {/* シーン切替はフックで追従せず、key で作り直す(docs/spec/design.md) */}
+      <SceneRoutines key={currentScene.id} scene={currentScene} />
+    </>
+  )
+}
+
+function SceneRoutines({ scene }: { scene: Scene }) {
+  const { routines, add, update, remove, move } = useRoutines(scene.id)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
 
@@ -60,9 +77,9 @@ export function RoutinesTab() {
 
   return (
     <section>
-      <h2>ルーチン</h2>
+      <h2>{scene.name}のルーチン</h2>
       <p className="hint">
-        毎晩の定番タスク。プラン作成時にここから選択された状態で始まります
+        このシーンの定番タスク。プラン作成時にここから選択された状態で始まります
       </p>
 
       {routines.length === 0 ? (

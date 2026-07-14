@@ -4,7 +4,7 @@
 // 完了による再配置はタイムラインを現実に追従させるが、基準タイムは動かないので
 // 「当初の予定に対して今どれだけズレているか」が測れる。
 
-import type { PlanItem, TonightPlan } from '../types'
+import type { PlanItem, ScenePlan } from '../types'
 import type { ScheduleResult } from './scheduler'
 import { formatDuration } from './time'
 
@@ -14,7 +14,7 @@ import { formatDuration } from './time'
  * 外したタスクは両側から除くので、外しただけでは ± は動かない。
  */
 export function overallDelta(
-  plan: TonightPlan,
+  plan: ScenePlan,
   schedule: ScheduleResult,
 ): number | null {
   const base = plan.baselineEnds
@@ -45,7 +45,7 @@ export function overallDelta(
  * 完了タスク 1 件の予定比(分) = 完了時刻 − 基準タイムの予定終了。
  * 基準がない(実行中に追加したタスク等)場合は null
  */
-export function itemDelta(plan: TonightPlan, item: PlanItem): number | null {
+export function itemDelta(plan: ScenePlan, item: PlanItem): number | null {
   const baseEnd = plan.baselineEnds?.[item.id]
   if (baseEnd === undefined || item.doneAt === undefined) return null
   return item.doneAt - baseEnd

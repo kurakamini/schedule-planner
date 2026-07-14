@@ -1,14 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
-import { TonightTab } from './TonightTab'
+import { SceneTab } from './SceneTab'
 import {
-  loadTonightPlan,
+  loadScenePlan,
+  saveCurrentSceneId,
   saveRoutines,
-  saveSettings,
-  saveTonightPlan,
+  saveScenePlan,
+  saveScenes,
 } from '../../lib/storage'
-import type { RoutineTask, TonightPlan } from '../../types'
+import type { RoutineTask, ScenePlan } from '../../types'
+
+const NIGHT = { id: 'night', name: '夜', defaultEnd: 1470, order: 0 }
 
 // requirements.md の具体例に合わせたルーチン(21:10 帰宅・就寝 24:30)
 const ROUTINES: RoutineTask[] = [
@@ -22,8 +25,9 @@ beforeEach(() => {
   localStorage.clear()
   vi.useFakeTimers()
   vi.setSystemTime(new Date(2026, 6, 8, 21, 10))
-  saveRoutines(ROUTINES)
-  saveSettings({ defaultBedtime: 1470 })
+  saveScenes([NIGHT])
+  saveCurrentSceneId(NIGHT.id)
+  saveRoutines(NIGHT.id, ROUTINES)
 })
 
 afterEach(() => {
@@ -43,14 +47,14 @@ const tlRows = () =>
 const nowCardTask = () =>
   document.querySelector('.now-card .now-task')?.textContent
 
-describe('TonightTab: プラン作成ビュー', () => {
-  it('ルーチン全件が選択済みで並び、開始時刻は現在時刻・就寝時刻はデフォルト値', () => {
-    render(<TonightTab />)
+describe('SceneTab: プラン作成ビュー', () => {
+  it('ルーチン全件が選択済みで並び、開始時刻は現在時刻・終了時刻はシーンのデフォルト値', () => {
+    render(<SceneTab />)
     expect(
-      screen.getByRole('heading', { name: '今夜のプラン' }),
+      screen.getByRole('heading', { name: '夜のプラン' }),
     ).toBeInTheDocument()
     expect(screen.getByLabelText('開始時刻')).toHaveValue('21:10')
-    expect(screen.getByLabelText('就寝時刻(今夜)')).toHaveValue('24:30')
+    expect(screen.getByLabelText('終了時刻')).toHaveValue('24:30')
 
     const checks = screen.getAllByRole('checkbox')
     expect(checks).toHaveLength(4)
@@ -58,11 +62,11 @@ describe('TonightTab: プラン作成ビュー', () => {
   })
 
   it('作成すると requirements.md の具体例どおりのタイムラインが表示される', () => {
-    const view = render(<TonightTab />)
+    const view = render(<SceneTab />)
     fireEvent.click(createButton())
 
     expect(
-      screen.getByRole('heading', { name: '今夜のスケジュール' }),
+      screen.getByRole('heading', { name: '夜のスケジュール' }),
     ).toBeInTheDocument()
     expect(tlRows()).toEqual([
       '21:10〜21:40夕食',
@@ -76,21 +80,21 @@ describe('TonightTab: プラン作成ビュー', () => {
 
     // リロード相当(再マウント)でも実行ビューのまま
     view.unmount()
-    render(<TonightTab />)
+    render(<SceneTab />)
     expect(
-      screen.getByRole('heading', { name: '今夜のスケジュール' }),
+      screen.getByRole('heading', { name: '夜のスケジュール' }),
     ).toBeInTheDocument()
   })
 
   it('チェックを外したタスクはタイムラインに含まれない', () => {
-    render(<TonightTab />)
+    render(<SceneTab />)
     fireEvent.click(screen.getByRole('checkbox', { name: /風呂/ }))
     fireEvent.click(createButton())
     expect(tlRows().join('')).not.toContain('風呂')
   })
 
   it('今日だけのタスクを追加でき、タイムラインに含まれる', () => {
-    render(<TonightTab />)
+    render(<SceneTab />)
     fireEvent.change(screen.getByLabelText('タスク名'), {
       target: { value: 'ストレッチ' },
     })
@@ -105,7 +109,7 @@ describe('TonightTab: プラン作成ビュー', () => {
   })
 
   it('▲▼の並べ替えが配置順に反映される', () => {
-    render(<TonightTab />)
+    render(<SceneTab />)
     fireEvent.click(screen.getByRole('button', { name: '英語 を上へ' }))
     fireEvent.click(createButton())
 
@@ -114,9 +118,9 @@ describe('TonightTab: プラン作成ビュー', () => {
     expect(rows[4]).toBe('23:00〜23:30風呂')
   })
 
-  it('就寝時刻を早めて収まらないと警告と超過表示が出る', () => {
-    const { container } = render(<TonightTab />)
-    fireEvent.change(screen.getByLabelText('就寝時刻(今夜)'), {
+  it('終了時刻を早めて収まらないと警告と超過表示が出る', () => {
+    const { container } = render(<SceneTab />)
+    fireEvent.change(screen.getByLabelText('終了時刻'), {
       target: { value: '22:30' },
     })
     fireEvent.click(createButton())
@@ -125,95 +129,95 @@ describe('TonightTab: プラン作成ビュー', () => {
     expect(container.querySelectorAll('.tl-overflow')).toHaveLength(2) // 風呂・英語
   })
 
-  it('開始時刻が就寝時刻以降だと作成できず、理由が表示される', () => {
-    render(<TonightTab />)
-    // 開始 25:00 > 就寝 24:30 の逆転(コロンなし入力)
+  it('開始時刻が終了時刻以降だと作成できず、理由が表示される', () => {
+    render(<SceneTab />)
+    // 開始 25:00 > 終了 24:30 の逆転(コロンなし入力)
     fireEvent.change(screen.getByLabelText('開始時刻'), {
       target: { value: '2500' },
     })
     expect(
-      screen.getByText('開始時刻は就寝時刻より前にしてください'),
+      screen.getByText('開始時刻は終了時刻より前にしてください'),
     ).toBeInTheDocument()
     expect(createButton()).toBeDisabled()
 
-    // 開始を就寝より前に戻せば作成できる
+    // 開始を終了より前に戻せば作成できる
     fireEvent.change(screen.getByLabelText('開始時刻'), {
       target: { value: '2300' },
     })
     expect(
-      screen.queryByText('開始時刻は就寝時刻より前にしてください'),
+      screen.queryByText('開始時刻は終了時刻より前にしてください'),
     ).not.toBeInTheDocument()
     expect(createButton()).not.toBeDisabled()
   })
 
   it('「プランを編集」で作成ビューに戻り、選択状態は保持される', () => {
-    render(<TonightTab />)
+    render(<SceneTab />)
     fireEvent.click(screen.getByRole('checkbox', { name: /風呂/ }))
     fireEvent.click(createButton())
     fireEvent.click(screen.getByRole('button', { name: 'プランを編集' }))
 
     expect(
-      screen.getByRole('heading', { name: '今夜のプラン' }),
+      screen.getByRole('heading', { name: '夜のプラン' }),
     ).toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: /風呂/ })).not.toBeChecked()
     expect(screen.getByRole('checkbox', { name: /夕食/ })).toBeChecked()
   })
 
   it('作成ビューのまま開き直すと、過去になった開始時刻は現在時刻へ追従する', () => {
-    const view = render(<TonightTab />) // 21:10 に開いた
+    const view = render(<SceneTab />) // 21:10 に開いた
     fireEvent.click(screen.getByRole('checkbox', { name: /風呂/ })) // 調整を保存
     view.unmount()
 
     vi.setSystemTime(new Date(2026, 6, 8, 22, 0))
-    render(<TonightTab />) // 22:00 に開き直す
+    render(<SceneTab />) // 22:00 に開き直す
 
     expect(screen.getByLabelText('開始時刻')).toHaveValue('22:00')
-    // 当夜の調整(チェック状態)は保持される
+    // 当日の調整(チェック状態)は保持される
     expect(screen.getByRole('checkbox', { name: /風呂/ })).not.toBeChecked()
   })
 
-  it('未来に設定した開始時刻は開き直しても保持される(帰宅前の仕込み)', () => {
-    const view = render(<TonightTab />)
+  it('未来に設定した開始時刻は開き直しても保持される(開始前の仕込み)', () => {
+    const view = render(<SceneTab />)
     fireEvent.change(screen.getByLabelText('開始時刻'), {
       target: { value: '2300' },
     })
     view.unmount()
 
     vi.setSystemTime(new Date(2026, 6, 8, 21, 30))
-    render(<TonightTab />) // まだ 23:00 より前
+    render(<SceneTab />) // まだ 23:00 より前
 
     expect(screen.getByLabelText('開始時刻')).toHaveValue('23:00')
   })
 
   it('リロードなしで画面に戻ってきた時も開始時刻が追従する', () => {
-    render(<TonightTab />) // 21:10 に開いた
+    render(<SceneTab />) // 21:10 に開いた
     vi.setSystemTime(new Date(2026, 6, 8, 21, 45))
     fireEvent(document, new Event('visibilitychange')) // 21:45 に画面復帰
 
     expect(screen.getByLabelText('開始時刻')).toHaveValue('21:45')
-    expect(loadTonightPlan()?.anchorAt).toBe(21 * 60 + 45)
+    expect(loadScenePlan(NIGHT.id)?.anchorAt).toBe(21 * 60 + 45)
   })
 
-  it('あとから登録したルーチンが作成ビューに取り込まれる(当夜の調整は保持)', () => {
-    const view = render(<TonightTab />)
+  it('あとから登録したルーチンが作成ビューに取り込まれる(当日の調整は保持)', () => {
+    const view = render(<SceneTab />)
     fireEvent.click(screen.getByRole('checkbox', { name: /風呂/ })) // 保存を発生させる
     view.unmount()
 
-    saveRoutines([
+    saveRoutines(NIGHT.id, [
       ...ROUTINES,
       { id: 'r5', name: '筋トレ', durationMin: 20, order: 4 },
     ])
-    render(<TonightTab />)
+    render(<SceneTab />)
 
     expect(screen.getByRole('checkbox', { name: /筋トレ/ })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: /風呂/ })).not.toBeChecked()
-    expect(loadTonightPlan()?.items).toHaveLength(5)
+    expect(loadScenePlan(NIGHT.id)?.items).toHaveLength(5)
   })
 })
 
-describe('TonightTab: 実行ビュー', () => {
+describe('SceneTab: 実行ビュー', () => {
   function renderStarted() {
-    const view = render(<TonightTab />)
+    const view = render(<SceneTab />)
     fireEvent.click(createButton())
     return view
   }
@@ -223,7 +227,7 @@ describe('TonightTab: 実行ビュー', () => {
     expect(screen.getByText('いまやる')).toBeInTheDocument()
     expect(nowCardTask()).toBe('夕食')
     expect(screen.getByText('21:40 まで(残り 30分)')).toBeInTheDocument()
-    expect(screen.getByText(/就寝まで 3時間20分/)).toBeInTheDocument()
+    expect(screen.getByText(/終了まで 3時間20分/)).toBeInTheDocument()
   })
 
   it('完了すると完了行がグレー表示になり、残りが現在時刻から引き直される', () => {
@@ -243,7 +247,7 @@ describe('TonightTab: 実行ビュー', () => {
     ])
     // 保存にも反映
     expect(
-      loadTonightPlan()?.items.find((it) => it.name === '夕食')?.done,
+      loadScenePlan(NIGHT.id)?.items.find((it) => it.name === '夕食')?.done,
     ).toBe(true)
   })
 
@@ -255,7 +259,7 @@ describe('TonightTab: 実行ビュー', () => {
     )
     expect(nowCardTask()).toBe('夕食')
     expect(
-      loadTonightPlan()?.items.find((it) => it.name === '夕食')?.done,
+      loadScenePlan(NIGHT.id)?.items.find((it) => it.name === '夕食')?.done,
     ).toBe(false)
   })
 
@@ -299,7 +303,7 @@ describe('TonightTab: 実行ビュー', () => {
     const view = renderStarted() // 21:10 開始
     vi.setSystemTime(new Date(2026, 6, 8, 21, 25))
     view.unmount()
-    render(<TonightTab />) // 21:25 に開き直す
+    render(<SceneTab />) // 21:25 に開き直す
 
     expect(tlRows()[0]).toBe('21:10〜21:40夕食')
     expect(screen.getByText('21:40 まで(残り 15分)')).toBeInTheDocument()
@@ -321,7 +325,7 @@ describe('TonightTab: 実行ビュー', () => {
   })
 
   it('開始時刻を入力して組め、再編集でも保持される(コロンなし入力対応)', () => {
-    render(<TonightTab />)
+    render(<SceneTab />)
     fireEvent.change(screen.getByLabelText('開始時刻'), {
       target: { value: '2130' }, // コロンなし入力
     })
@@ -378,17 +382,17 @@ describe('TonightTab: 実行ビュー', () => {
       screen.getByText('おつかれさま!全部終わりました'),
     ).toBeInTheDocument()
     expect(
-      screen.getByText(/就寝まで自由時間 3時間20分。堂々とどうぞ/),
+      screen.getByText(/終了まで自由時間 3時間20分。堂々とどうぞ/),
     ).toBeInTheDocument()
     // NOW カードは消える
     expect(document.querySelector('.now-card')).toBeNull()
   })
 })
 
-describe('TonightTab: 夜の切り替わり(F5)', () => {
-  const lastNightPlan: TonightPlan = {
-    nightKey: '2026-07-07',
-    bedtime: 1470,
+describe('SceneTab: 日の切り替わり(F5)', () => {
+  const lastNightPlan: ScenePlan = {
+    dayKey: '2026-07-07',
+    endAt: 1470,
     started: true,
     anchorAt: 1270,
     items: [
@@ -405,38 +409,92 @@ describe('TonightTab: 夜の切り替わり(F5)', () => {
     ],
   }
 
-  it('翌夜に開くと前夜のプラン(実行中でも)は破棄され、作成ビューから始まる', () => {
-    saveTonightPlan(lastNightPlan) // 前夜(7/7)の実行中プラン。現在は 7/8 21:10
-    render(<TonightTab />)
+  it('翌日に開くと前日のプラン(実行中でも)は破棄され、作成ビューから始まる', () => {
+    saveScenePlan(NIGHT.id, lastNightPlan) // 前夜(7/7)の実行中プラン。現在は 7/8 21:10
+    render(<SceneTab />)
 
     expect(
-      screen.getByRole('heading', { name: '今夜のプラン' }),
+      screen.getByRole('heading', { name: '夜のプラン' }),
     ).toBeInTheDocument()
     // ルーチン全件が未完了・選択済みで作り直されている
     const checks = screen.getAllByRole('checkbox')
     expect(checks).toHaveLength(4)
-    expect(loadTonightPlan()?.nightKey).toBe('2026-07-08')
+    expect(loadScenePlan(NIGHT.id)?.dayKey).toBe('2026-07-08')
   })
 
-  it('深夜 0 時を過ぎても(朝 4 時まで)同じ夜としてプランを保持する', () => {
-    saveTonightPlan({ ...lastNightPlan, nightKey: '2026-07-08' })
+  it('深夜 0 時を過ぎても(朝 4 時まで)同じ日としてプランを保持する', () => {
+    saveScenePlan(NIGHT.id, { ...lastNightPlan, dayKey: '2026-07-08' })
     vi.setSystemTime(new Date(2026, 6, 9, 1, 0)) // 翌 1:00 = 25:00
 
-    render(<TonightTab />)
+    render(<SceneTab />)
     expect(
-      screen.getByRole('heading', { name: '今夜のスケジュール' }),
+      screen.getByRole('heading', { name: '夜のスケジュール' }),
     ).toBeInTheDocument()
-    expect(loadTonightPlan()?.nightKey).toBe('2026-07-08')
+    expect(loadScenePlan(NIGHT.id)?.dayKey).toBe('2026-07-08')
   })
 
-  it('朝 4 時を過ぎると新しい夜になる', () => {
-    saveTonightPlan({ ...lastNightPlan, nightKey: '2026-07-08' })
+  it('朝 4 時を過ぎると新しい日になる', () => {
+    saveScenePlan(NIGHT.id, { ...lastNightPlan, dayKey: '2026-07-08' })
     vi.setSystemTime(new Date(2026, 6, 9, 4, 0)) // 朝 4:00
 
-    render(<TonightTab />)
+    render(<SceneTab />)
     expect(
-      screen.getByRole('heading', { name: '今夜のプラン' }),
+      screen.getByRole('heading', { name: '夜のプラン' }),
     ).toBeInTheDocument()
-    expect(loadTonightPlan()?.nightKey).toBe('2026-07-09')
+    expect(loadScenePlan(NIGHT.id)?.dayKey).toBe('2026-07-09')
+  })
+})
+
+describe('SceneTab: シーン切り替え', () => {
+  const MORNING = { id: 'morning', name: '朝', defaultEnd: 480, order: 1 }
+
+  function seedTwoScenes() {
+    vi.setSystemTime(new Date(2026, 6, 8, 6, 30)) // 朝 6:30
+    saveScenes([NIGHT, MORNING])
+    saveCurrentSceneId(NIGHT.id)
+    saveRoutines(MORNING.id, [
+      { id: 'm1', name: '朝食', durationMin: 10, order: 0 },
+    ])
+  }
+
+  it('シーンを切り替えるとルーチンとプランが独立している', () => {
+    seedTwoScenes()
+    render(<SceneTab />)
+    expect(
+      screen.getByRole('heading', { name: '夜のプラン' }),
+    ).toBeInTheDocument()
+    expect(screen.getAllByRole('checkbox')).toHaveLength(4)
+
+    fireEvent.click(screen.getByRole('button', { name: '朝' }))
+    expect(
+      screen.getByRole('heading', { name: '朝のプラン' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: /朝食/ })).toBeChecked()
+    expect(screen.getByLabelText('終了時刻')).toHaveValue('8:00')
+
+    // 朝のスケジュールを開始しても夜のプランには影響しない
+    fireEvent.click(createButton())
+    expect(
+      screen.getByRole('heading', { name: '朝のスケジュール' }),
+    ).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: '夜' }))
+    expect(
+      screen.getByRole('heading', { name: '夜のプラン' }),
+    ).toBeInTheDocument()
+    expect(loadScenePlan(MORNING.id)?.started).toBe(true)
+    expect(loadScenePlan(NIGHT.id)?.started).toBe(false)
+  })
+
+  it('選んだシーンは開き直しても記憶される', () => {
+    seedTwoScenes()
+    const view = render(<SceneTab />)
+    fireEvent.click(screen.getByRole('button', { name: '朝' }))
+    view.unmount()
+
+    render(<SceneTab />)
+    expect(
+      screen.getByRole('heading', { name: '朝のプラン' }),
+    ).toBeInTheDocument()
   })
 })
