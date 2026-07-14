@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { buildSchedule } from './scheduler'
 import { deltaClass, formatDelta, itemDelta, overallDelta } from './rta'
 import type { PlanItem, ScenePlan } from '../types'
 
@@ -29,14 +28,6 @@ function makePlan(
   }
 }
 
-function scheduleOf(plan: ScenePlan) {
-  return buildSchedule({
-    items: plan.items.filter((it) => it.included && !it.done),
-    now: plan.anchorAt,
-    endAt: plan.endAt,
-  })
-}
-
 describe('formatDelta / deltaClass', () => {
   it('先行はマイナス緑、遅れはプラス赤、同着は ±0 グレー', () => {
     expect(formatDelta(-10)).toBe('-10分')
@@ -53,52 +44,63 @@ describe('formatDelta / deltaClass', () => {
   })
 })
 
-describe('overallDelta', () => {
+describe('overallDelta(スプリット式: 最後の完了時点のズレ)', () => {
   it('基準タイムがない(旧データ)場合は null', () => {
     const plan = makePlan([item({ id: 'a' })], 1270)
-    expect(overallDelta(plan, scheduleOf(plan))).toBeNull()
+    expect(overallDelta(plan)).toBeNull()
   })
 
-  it('早く完了して残りが前倒しになった分だけマイナスになる', () => {
-    // 予定: a 21:10-21:40, b 21:40-22:10。a を 21:30 に完了 → b は 21:30-22:00
-    const plan = makePlan(
-      [item({ id: 'a', done: true, doneAt: 1290 }), item({ id: 'b', order: 1 })],
-      1290,
-      { a: 1300, b: 1330 },
-    )
-    expect(overallDelta(plan, scheduleOf(plan))).toBe(-10)
+  it('まだ何も完了していなければ ±0', () => {
+    const plan = makePlan([item({ id: 'a' })], 1270, { a: 1300 })
+    expect(overallDelta(plan)).toBe(0)
   })
 
-  it('全タスク完了後は最後の完了時刻と基準の差になる', () => {
+  it('早く完了した瞬間にマイナスが出る(固定予定が後ろに控えていても)', () => {
+    // a を予定 21:40 のところ 21:30 に完了。📌 b(24:00 固定)が残っていても
+    // 終了見込みではなくスプリット差で測るのでマイナスが出る
     const plan = makePlan(
       [
         item({ id: 'a', done: true, doneAt: 1290 }),
-        item({ id: 'b', order: 1, done: true, doneAt: 1310 }),
+        item({ id: 'b', order: 1, fixedStart: 1440 }),
       ],
+      1290,
+      { a: 1300, b: 1470 },
+    )
+    expect(overallDelta(plan)).toBe(-10)
+  })
+
+  it('遅れて完了するとプラスが出る', () => {
+    const plan = makePlan(
+      [item({ id: 'a', done: true, doneAt: 1310 }), item({ id: 'b', order: 1 })],
       1310,
       { a: 1300, b: 1330 },
     )
-    expect(overallDelta(plan, scheduleOf(plan))).toBe(-20)
+    expect(overallDelta(plan)).toBe(10)
   })
 
-  it('タスクを外しても外しただけでは動かない(両側から除く)', () => {
-    // 予定終了 22:10(b)だが b を外した → 基準も a の 21:40 で比べる
+  it('直近(最後)の完了時点のズレを使う', () => {
+    // a は -10 だったが、b の完了時点で +10 に転じた
     const plan = makePlan(
-      [item({ id: 'a' }), item({ id: 'b', order: 1, included: false })],
-      1270,
+      [
+        item({ id: 'a', done: true, doneAt: 1290 }),
+        item({ id: 'b', order: 1, done: true, doneAt: 1340 }),
+      ],
+      1340,
       { a: 1300, b: 1330 },
     )
-    expect(overallDelta(plan, scheduleOf(plan))).toBe(0)
+    expect(overallDelta(plan)).toBe(10)
   })
 
-  it('実行中に追加したタスクの分は遅れとして現れる', () => {
-    // 基準は a のみ(21:40 終了予定)。c(30 分)を追加 → 見込み 22:10
+  it('基準のないタスク(実行中の追加分)の完了はスキップし、直近の基準あり完了で測る', () => {
     const plan = makePlan(
-      [item({ id: 'a' }), item({ id: 'c', order: 1 })],
-      1270,
+      [
+        item({ id: 'a', done: true, doneAt: 1290 }),
+        item({ id: 'c', order: 1, done: true, doneAt: 1400 }), // 基準なし
+      ],
+      1400,
       { a: 1300 },
     )
-    expect(overallDelta(plan, scheduleOf(plan))).toBe(30)
+    expect(overallDelta(plan)).toBe(-10)
   })
 })
 
