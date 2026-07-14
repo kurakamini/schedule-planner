@@ -5,40 +5,28 @@
 // 「当初の予定に対して今どれだけズレているか」が測れる。
 
 import type { PlanItem, ScenePlan } from '../types'
-import type { ScheduleResult } from './scheduler'
 import { formatDuration } from './time'
 
 /**
- * 全体の予定比(分)。現在の終了見込み(全完了後は最後の完了時刻)と
- * 基準タイムの終了予定の差。基準がない(旧データ等)場合は null。
- * 外したタスクは両側から除くので、外しただけでは ± は動かない。
+ * 全体の予定比(分)= 最後に完了したタスク時点のズレ(RTA のスプリット差)。
+ * 早く完了した瞬間にマイナスが出て、固定予定待ちの自由時間には左右されない
+ * (終了見込みベースだと固定予定に釘付けされ、遅れ=プラスしか出なかった)。
+ * 収まるかどうかの見込みは「終了までに◯分収まりません」警告が別で担う。
+ * 実行中に追加したタスク(基準なし)の完了はスプリットに数えず、直近の基準あり完了で測る。
+ * まだ基準ありの完了がなければ ±0。基準タイム自体がない(旧データ等)場合は null
  */
-export function overallDelta(
-  plan: ScenePlan,
-  schedule: ScheduleResult,
-): number | null {
+export function overallDelta(plan: ScenePlan): number | null {
   const base = plan.baselineEnds
   if (!base) return null
 
-  const included = plan.items.filter((it) => it.included)
-  const baseEnds = included
-    .map((it) => base[it.id])
-    .filter((end): end is number => end !== undefined)
-  if (baseEnds.length === 0) return null
-
-  const doneAts = included
-    .filter((it) => it.done)
-    .map((it) => it.doneAt)
-    .filter((at): at is number => at !== undefined)
-  const currentFinish =
-    schedule.scheduled.length > 0
-      ? Math.max(...schedule.scheduled.map((s) => s.end))
-      : doneAts.length > 0
-        ? Math.max(...doneAts)
-        : null
-  if (currentFinish === null) return null
-
-  return currentFinish - Math.max(...baseEnds)
+  let last: PlanItem | undefined
+  for (const it of plan.items) {
+    if (!it.included || !it.done || it.doneAt === undefined) continue
+    if (base[it.id] === undefined) continue
+    if (last?.doneAt === undefined || it.doneAt >= last.doneAt) last = it
+  }
+  if (last === undefined) return 0
+  return itemDelta(plan, last)
 }
 
 /**

@@ -339,15 +339,17 @@ describe('SceneTab: 実行ビュー', () => {
     expect(screen.getByLabelText('開始時刻')).toHaveValue('21:30')
   })
 
-  it('予定より早く完了すると緑のマイナスで予定比が出る(行と全体)', () => {
-    renderStarted() // 21:10 開始。夕食の予定終了 21:40、全体の予定終了 23:30
+  it('予定より早く完了した瞬間、行と全体の予定比が緑のマイナスになる', () => {
+    renderStarted() // 21:10 開始。夕食の予定終了 21:40
+    expect(screen.getByText('±0分')).toHaveClass('delta-even') // 開始直後は同着
     vi.setSystemTime(new Date(2026, 6, 8, 21, 30))
     fireEvent.click(screen.getByRole('button', { name: '完了' }))
 
-    // 夕食: 予定 21:40 → 実績 21:30 = -10分
-    expect(screen.getByText('-10分')).toHaveClass('delta-ahead')
-    // 全体: 風呂が配信(22:00)前の隙間に収まり終了見込み 23:00 = -30分
-    expect(screen.getByText('-30分')).toHaveClass('delta-ahead')
+    // 夕食: 予定 21:40 → 実績 21:30 = -10分。全体(スプリット差)も -10分
+    // (📌 配信 22:00 が後ろに控えていても、待ち時間に吸収されずマイナスが出る)
+    const deltas = screen.getAllByText('-10分')
+    expect(deltas).toHaveLength(2)
+    for (const d of deltas) expect(d).toHaveClass('delta-ahead')
   })
 
   it('予定より遅れて完了すると赤のプラスで予定比が出る', () => {
@@ -355,20 +357,22 @@ describe('SceneTab: 実行ビュー', () => {
     vi.setSystemTime(new Date(2026, 6, 8, 21, 50))
     fireEvent.click(screen.getByRole('button', { name: '完了' }))
 
-    // 夕食: 予定 21:40 → 実績 21:50 = +10分
-    expect(screen.getByText('+10分')).toHaveClass('delta-behind')
-    // 全体: 遅れは配信(固定 22:00)待ちの自由時間が吸収するので ±0分
-    expect(screen.getByText('±0分')).toHaveClass('delta-even')
+    // 夕食: 予定 21:40 → 実績 21:50 = +10分。全体(スプリット差)も +10分
+    const deltas = screen.getAllByText('+10分')
+    expect(deltas).toHaveLength(2)
+    for (const d of deltas) expect(d).toHaveClass('delta-behind')
   })
 
-  it('全タスク完了後も最終的な予定比が残る', () => {
-    renderStarted() // 21:10 開始。全体の予定終了 23:30
-    for (let i = 0; i < 4; i++) {
+  it('全タスク完了後は最後の完了時点の予定比が残る', () => {
+    renderStarted() // 21:10 開始
+    for (let i = 0; i < 3; i++) {
       fireEvent.click(screen.getByRole('button', { name: '完了' }))
     }
+    vi.setSystemTime(new Date(2026, 6, 8, 21, 20))
+    fireEvent.click(screen.getByRole('button', { name: '完了' })) // 最後は配信(予定終了 22:30)
 
-    // 21:10 のうちに全完了 → 予定比 -2時間20分(ヘッダの全体と英語の行の 2 箇所)
-    const deltas = screen.getAllByText('-2時間20分')
+    // 最後の完了 21:20 − 予定 22:30 = -1時間10分(ヘッダの全体と配信の行の 2 箇所)
+    const deltas = screen.getAllByText('-1時間10分')
     expect(deltas).toHaveLength(2)
     for (const d of deltas) expect(d).toHaveClass('delta-ahead')
   })
