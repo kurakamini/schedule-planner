@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { parseNightTime } from '../../lib/time'
 import { parseDurationMin } from '../../lib/duration'
-import type { AdhocInput } from '../../hooks/useTonightPlan'
+import type { AdhocInput } from '../../hooks/useScenePlan'
 
 /** 今日だけのタスク追加フォーム(ルーチンには登録しない)。作成ビューと実行ビューで共用 */
 export function AdhocForm({ onAdd }: { onAdd: (input: AdhocInput) => void }) {

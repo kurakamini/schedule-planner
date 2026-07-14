@@ -1,10 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { RoutinesTab } from './RoutinesTab'
-import { loadRoutines } from '../../lib/storage'
+import {
+  loadRoutines,
+  saveCurrentSceneId,
+  saveScenes,
+} from '../../lib/storage'
+
+const NIGHT = { id: 'night', name: '夜', defaultEnd: 1470, order: 0 }
 
 beforeEach(() => {
   localStorage.clear()
+  saveScenes([NIGHT])
+  saveCurrentSceneId(NIGHT.id)
 })
 
 afterEach(() => {
@@ -38,7 +46,7 @@ describe('RoutinesTab', () => {
 
     render(<RoutinesTab />)
     expect(rowNames()).toEqual(['夕食'])
-    expect(loadRoutines()).toMatchObject([
+    expect(loadRoutines(NIGHT.id)).toMatchObject([
       { name: '夕食', durationMin: 30, order: 0 },
     ])
   })
@@ -47,7 +55,7 @@ describe('RoutinesTab', () => {
     render(<RoutinesTab />)
     addRoutine('配信', '30', '22:00')
     expect(screen.getByText('📌 22:00')).toBeInTheDocument()
-    expect(loadRoutines()[0].fixedStart).toBe(1320)
+    expect(loadRoutines(NIGHT.id)[0].fixedStart).toBe(1320)
   })
 
   it('タスク名が空・時刻が不正なら追加できない', () => {
@@ -82,7 +90,7 @@ describe('RoutinesTab', () => {
     fireEvent.click(screen.getByRole('button', { name: '夕食 を下へ' }))
     expect(rowNames()).toEqual(['英語', '夕食', '風呂'])
 
-    expect(loadRoutines().map((r) => [r.name, r.order])).toEqual([
+    expect(loadRoutines(NIGHT.id).map((r) => [r.name, r.order])).toEqual([
       ['英語', 0],
       ['夕食', 1],
       ['風呂', 2],
@@ -104,7 +112,7 @@ describe('RoutinesTab', () => {
 
     confirmSpy.mockReturnValue(true)
     fireEvent.click(screen.getByRole('button', { name: '夕食 を削除' }))
-    expect(loadRoutines()).toEqual([])
+    expect(loadRoutines(NIGHT.id)).toEqual([])
   })
 
   it('編集でき、更新後はフォームが追加モードに戻る', () => {
@@ -121,7 +129,9 @@ describe('RoutinesTab', () => {
     fireEvent.click(screen.getByRole('button', { name: '更新' }))
 
     expect(screen.getByText('45分')).toBeInTheDocument()
-    expect(loadRoutines()).toMatchObject([{ name: '英語', durationMin: 45 }])
+    expect(loadRoutines(NIGHT.id)).toMatchObject([
+      { name: '英語', durationMin: 45 },
+    ])
     // フォームは追加モードへ戻り、入力もクリアされる
     expect(screen.getByRole('button', { name: '追加' })).toBeInTheDocument()
     expect(screen.getByLabelText('タスク名')).toHaveValue('')
@@ -139,6 +149,25 @@ describe('RoutinesTab', () => {
     fireEvent.click(screen.getByRole('button', { name: '更新' }))
 
     expect(screen.queryByText(/📌/)).not.toBeInTheDocument()
-    expect(loadRoutines()[0].fixedStart).toBeUndefined()
+    expect(loadRoutines(NIGHT.id)[0].fixedStart).toBeUndefined()
+  })
+
+  it('ルーチンはシーンごとに別管理される', () => {
+    saveScenes([NIGHT, { id: 'morning', name: '朝', defaultEnd: 480, order: 1 }])
+    render(<RoutinesTab />)
+    addRoutine('夕食', '30')
+    expect(rowNames()).toEqual(['夕食'])
+
+    // 朝に切り替えると空。朝に追加しても夜には影響しない
+    fireEvent.click(screen.getByRole('button', { name: '朝' }))
+    expect(
+      screen.getByRole('heading', { name: '朝のルーチン' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/まだルーチンがありません/)).toBeInTheDocument()
+
+    addRoutine('朝食', '10')
+    expect(rowNames()).toEqual(['朝食'])
+    expect(loadRoutines(NIGHT.id)).toMatchObject([{ name: '夕食' }])
+    expect(loadRoutines('morning')).toMatchObject([{ name: '朝食' }])
   })
 })

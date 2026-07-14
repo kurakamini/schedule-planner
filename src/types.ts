@@ -1,7 +1,18 @@
 // データモデル: docs/spec/design.md「データモデル」準拠
 // 時刻はすべて「夜通算分」(その夜の基準日 0:00 からの分数。24:30 → 1470)で持つ
 
-/** ルーチンタスク(マスタ) */
+/** シーン(夜・朝・休日など、スケジュールを立てる時間帯の区分) */
+export type Scene = {
+  id: string
+  /** 例: 夜、朝、休日 */
+  name: string
+  /** デフォルト終了時刻(夜通算分)。夜なら就寝、朝なら出発に相当 */
+  defaultEnd: number
+  /** セレクタの表示順 */
+  order: number
+}
+
+/** ルーチンタスク(マスタ。シーンごとに別リスト) */
 export type RoutineTask = {
   id: string
   name: string
@@ -13,7 +24,7 @@ export type RoutineTask = {
   order: number
 }
 
-/** 今夜のプランの 1 項目 */
+/** 当日プランの 1 項目 */
 export type PlanItem = {
   id: string
   /** ルーチン由来なら元 ID(当日追加は undefined) */
@@ -29,12 +40,12 @@ export type PlanItem = {
   doneAt?: number
 }
 
-/** 今夜のプラン全体 */
-export type TonightPlan = {
-  /** 夜の識別子(例 "2026-07-08")。起動時に不一致なら破棄する(F5) */
-  nightKey: string
-  /** 今夜の就寝時刻(夜通算分) */
-  bedtime: number
+/** 当日のプラン全体(シーンごとに 1 つ) */
+export type ScenePlan = {
+  /** 日の識別子(例 "2026-07-08"、朝 4 時境界)。起動時に不一致なら破棄する(F5) */
+  dayKey: string
+  /** 当日の終了時刻(夜通算分)。夜なら就寝、朝なら出発 */
+  endAt: number
   /** false=プラン作成ビュー / true=実行ビュー */
   started: boolean
   /**
@@ -50,9 +61,4 @@ export type TonightPlan = {
    * この機能より前に開始したプランには存在しないので optional
    */
   baselineEnds?: Record<string, number>
-}
-
-export type Settings = {
-  /** デフォルト就寝時刻(夜通算分)。初期値 1470(24:30) */
-  defaultBedtime: number
 }

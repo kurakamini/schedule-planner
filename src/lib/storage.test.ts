@@ -1,16 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { RoutineTask, TonightPlan } from '../types'
+import type { RoutineTask, ScenePlan } from '../types'
 import {
-  DEFAULT_SETTINGS,
+  DEFAULT_SCENE_END,
   clearAllData,
-  clearTonightPlan,
+  loadCurrentSceneId,
   loadRoutines,
-  loadSettings,
-  loadTonightPlan,
+  loadScenePlan,
+  loadScenes,
+  removeSceneData,
+  saveCurrentSceneId,
   saveRoutines,
-  saveSettings,
-  saveTonightPlan,
+  saveScenePlan,
+  saveScenes,
 } from './storage'
+
+const SCENE = { id: 's1', name: '夜', defaultEnd: 1470, order: 0 }
 
 const routine: RoutineTask = {
   id: 'r1',
@@ -19,9 +23,9 @@ const routine: RoutineTask = {
   order: 0,
 }
 
-const plan: TonightPlan = {
-  nightKey: '2026-07-08',
-  bedtime: 1470,
+const plan: ScenePlan = {
+  dayKey: '2026-07-08',
+  endAt: 1470,
   started: true,
   anchorAt: 1270,
   items: [
@@ -45,6 +49,7 @@ const plan: TonightPlan = {
       done: false,
     },
   ],
+  baselineEnds: { i1: 1300, i2: 1350 },
 }
 
 beforeEach(() => {
@@ -55,93 +60,164 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('settings', () => {
-  it('保存した設定を読み戻せる', () => {
-    saveSettings({ defaultBedtime: 1500 })
-    expect(loadSettings()).toEqual({ defaultBedtime: 1500 })
+describe('scenes', () => {
+  it('まっさらな初回はデフォルトの「夜」シーンを作って返し、選択中にする', () => {
+    const scenes = loadScenes()
+    expect(scenes).toHaveLength(1)
+    expect(scenes[0].name).toBe('夜')
+    expect(scenes[0].defaultEnd).toBe(DEFAULT_SCENE_END)
+    expect(loadCurrentSceneId()).toBe(scenes[0].id)
   })
 
-  it('未保存なら初期値(24:30)を返す', () => {
-    expect(loadSettings()).toEqual(DEFAULT_SETTINGS)
-    expect(DEFAULT_SETTINGS.defaultBedtime).toBe(1470)
+  it('保存したシーンを読み戻せる', () => {
+    const scenes = [SCENE, { id: 's2', name: '朝', defaultEnd: 480, order: 1 }]
+    saveScenes(scenes)
+    expect(loadScenes()).toEqual(scenes)
   })
 
-  it('JSON が壊れていたら初期値を返す(クラッシュしない)', () => {
-    localStorage.setItem('sp.v1.settings', '{oops')
-    expect(loadSettings()).toEqual(DEFAULT_SETTINGS)
+  it('JSON が壊れていたらデフォルトシーンで作り直す(クラッシュしない)', () => {
+    localStorage.setItem('sp.v2.scenes', '{oops')
+    const scenes = loadScenes()
+    expect(scenes).toHaveLength(1)
+    expect(scenes[0].name).toBe('夜')
   })
 
-  it('型が合わなければ初期値を返す', () => {
-    localStorage.setItem(
-      'sp.v1.settings',
-      JSON.stringify({ defaultBedtime: '24:30' }),
-    )
-    expect(loadSettings()).toEqual(DEFAULT_SETTINGS)
+  it('選択中シーン ID を保存・読み出しできる', () => {
+    saveCurrentSceneId('s2')
+    expect(loadCurrentSceneId()).toBe('s2')
   })
 })
 
-describe('routines', () => {
+describe('routines(シーンごと)', () => {
   it('保存したルーチンを読み戻せる(固定時刻の有無どちらも)', () => {
     const routines: RoutineTask[] = [
       routine,
       { id: 'r2', name: '配信', durationMin: 30, fixedStart: 1320, order: 1 },
     ]
-    saveRoutines(routines)
-    expect(loadRoutines()).toEqual(routines)
+    saveRoutines('s1', routines)
+    expect(loadRoutines('s1')).toEqual(routines)
   })
 
-  it('未保存なら空配列を返す', () => {
-    expect(loadRoutines()).toEqual([])
+  it('シーンが違えば別のリストになる', () => {
+    saveRoutines('s1', [routine])
+    expect(loadRoutines('s2')).toEqual([])
   })
 
   it('配列でない・要素が不正なら空配列を返す', () => {
-    localStorage.setItem('sp.v1.routines', JSON.stringify({ not: 'array' }))
-    expect(loadRoutines()).toEqual([])
+    localStorage.setItem('sp.v2.routines.s1', JSON.stringify({ not: 'array' }))
+    expect(loadRoutines('s1')).toEqual([])
 
     localStorage.setItem(
-      'sp.v1.routines',
+      'sp.v2.routines.s1',
       JSON.stringify([routine, { id: 'broken' }]),
     )
-    expect(loadRoutines()).toEqual([])
+    expect(loadRoutines('s1')).toEqual([])
   })
 })
 
-describe('tonight plan', () => {
+describe('scene plan(シーンごと)', () => {
   it('保存したプランを読み戻せる', () => {
-    saveTonightPlan(plan)
-    expect(loadTonightPlan()).toEqual(plan)
-  })
-
-  it('未保存なら null を返す', () => {
-    expect(loadTonightPlan()).toBeNull()
+    saveScenePlan('s1', plan)
+    expect(loadScenePlan('s1')).toEqual(plan)
+    expect(loadScenePlan('s2')).toBeNull()
   })
 
   it('items に不正な要素があれば null を返す', () => {
     localStorage.setItem(
-      'sp.v1.tonight',
+      'sp.v2.plan.s1',
       JSON.stringify({ ...plan, items: [{ id: 'broken' }] }),
     )
-    expect(loadTonightPlan()).toBeNull()
+    expect(loadScenePlan('s1')).toBeNull()
   })
 
-  it('clearTonightPlan でプランだけ消える', () => {
-    saveSettings({ defaultBedtime: 1500 })
-    saveTonightPlan(plan)
-    clearTonightPlan()
-    expect(loadTonightPlan()).toBeNull()
-    expect(loadSettings()).toEqual({ defaultBedtime: 1500 })
+  it('removeSceneData でそのシーンのルーチンとプランだけ消える', () => {
+    saveRoutines('s1', [routine])
+    saveScenePlan('s1', plan)
+    saveRoutines('s2', [routine])
+    removeSceneData('s1')
+    expect(loadRoutines('s1')).toEqual([])
+    expect(loadScenePlan('s1')).toBeNull()
+    expect(loadRoutines('s2')).toEqual([routine])
+  })
+})
+
+describe('v1 → v2 移行', () => {
+  const v1Tonight = {
+    nightKey: '2026-07-08',
+    bedtime: 1500,
+    started: true,
+    anchorAt: 1270,
+    items: plan.items,
+    baselineEnds: plan.baselineEnds,
+  }
+
+  function seedV1() {
+    localStorage.setItem(
+      'sp.v1.settings',
+      JSON.stringify({ defaultBedtime: 1500 }),
+    )
+    localStorage.setItem('sp.v1.routines', JSON.stringify([routine]))
+    localStorage.setItem('sp.v1.tonight', JSON.stringify(v1Tonight))
+  }
+
+  it('v1 データが「夜」シーンとして引き継がれ、v1 キーは消える', () => {
+    seedV1()
+    const scenes = loadScenes()
+
+    expect(scenes).toHaveLength(1)
+    expect(scenes[0].name).toBe('夜')
+    expect(scenes[0].defaultEnd).toBe(1500) // v1 のデフォルト就寝時刻
+    expect(loadCurrentSceneId()).toBe(scenes[0].id)
+    expect(loadRoutines(scenes[0].id)).toEqual([routine])
+    // nightKey→dayKey / bedtime→endAt の変換込みで引き継がれる
+    expect(loadScenePlan(scenes[0].id)).toEqual({
+      dayKey: '2026-07-08',
+      endAt: 1500,
+      started: true,
+      anchorAt: 1270,
+      items: plan.items,
+      baselineEnds: plan.baselineEnds,
+    })
+    expect(localStorage.getItem('sp.v1.settings')).toBeNull()
+    expect(localStorage.getItem('sp.v1.routines')).toBeNull()
+    expect(localStorage.getItem('sp.v1.tonight')).toBeNull()
+  })
+
+  it('移行は一度だけ(v2 があれば v1 が残っていても触らない)', () => {
+    saveScenes([SCENE])
+    localStorage.setItem('sp.v1.routines', JSON.stringify([routine]))
+    expect(loadScenes()).toEqual([SCENE])
+    expect(loadRoutines(SCENE.id)).toEqual([])
+  })
+
+  it('v1 の一部が壊れていても読める分だけ引き継ぐ', () => {
+    seedV1()
+    localStorage.setItem('sp.v1.tonight', '{oops')
+    const scenes = loadScenes()
+    expect(scenes[0].defaultEnd).toBe(1500)
+    expect(loadRoutines(scenes[0].id)).toEqual([routine])
+    expect(loadScenePlan(scenes[0].id)).toBeNull()
   })
 })
 
 describe('clearAllData', () => {
-  it('全キーが消えて初期値に戻る', () => {
-    saveSettings({ defaultBedtime: 1500 })
-    saveRoutines([routine])
-    saveTonightPlan(plan)
+  it('sp. 配下の全キーが消えて初期状態に戻る', () => {
+    saveScenes([SCENE])
+    saveCurrentSceneId(SCENE.id)
+    saveRoutines(SCENE.id, [routine])
+    saveScenePlan(SCENE.id, plan)
+    localStorage.setItem('sp.v1.routines', JSON.stringify([routine])) // v1 の残骸
+    localStorage.setItem('unrelated', 'keep')
+
     clearAllData()
-    expect(loadSettings()).toEqual(DEFAULT_SETTINGS)
-    expect(loadRoutines()).toEqual([])
-    expect(loadTonightPlan()).toBeNull()
+
+    expect(localStorage.getItem('sp.v2.scenes')).toBeNull()
+    expect(localStorage.getItem('sp.v1.routines')).toBeNull()
+    expect(localStorage.getItem('unrelated')).toBe('keep')
+    // 次の読み込みで初期シーンが作り直される
+    const scenes = loadScenes()
+    expect(scenes).toHaveLength(1)
+    expect(scenes[0].name).toBe('夜')
   })
 })
 
@@ -151,7 +227,7 @@ describe('保存失敗時の挙動', () => {
       throw new Error('QuotaExceededError')
     })
     vi.spyOn(console, 'error').mockImplementation(() => {})
-    expect(() => saveSettings({ defaultBedtime: 1500 })).not.toThrow()
+    expect(() => saveScenes([SCENE])).not.toThrow()
     expect(console.error).toHaveBeenCalled()
   })
 })

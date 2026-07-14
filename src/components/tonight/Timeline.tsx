@@ -1,4 +1,4 @@
-import type { PlanItem, TonightPlan } from '../../types'
+import type { PlanItem, ScenePlan } from '../../types'
 import type { ScheduleResult, Warning } from '../../lib/scheduler'
 import { deltaClass, formatDelta, itemDelta } from '../../lib/rta'
 import { formatDuration, formatNightTime } from '../../lib/time'
@@ -9,8 +9,8 @@ type Row =
 
 function warningText(w: Warning, byId: Map<string, PlanItem>): string {
   switch (w.type) {
-    case 'overBedtime':
-      return `就寝までに ${formatDuration(w.overrunMin)} 収まりません。タスクを外すか就寝時刻を調整してください`
+    case 'overEnd':
+      return `終了までに ${formatDuration(w.overrunMin)} 収まりません。タスクを外すか終了時刻を調整してください`
     case 'fixedOverlap':
       return `固定時刻の予定「${byId.get(w.itemIds[0])?.name}」と「${byId.get(w.itemIds[1])?.name}」が重なっています`
     case 'fixedPast':
@@ -19,7 +19,7 @@ function warningText(w: Warning, byId: Map<string, PlanItem>): string {
 }
 
 type Props = {
-  plan: TonightPlan
+  plan: ScenePlan
   schedule: ScheduleResult
   /** NOW カードに出ている「今やるタスク」。行を強調表示する */
   currentItemId?: string
@@ -58,7 +58,7 @@ export function Timeline({
   if (schedule.freeAfterMin > 0) {
     rows.push({
       kind: 'free',
-      start: plan.bedtime - schedule.freeAfterMin,
+      start: plan.endAt - schedule.freeAfterMin,
       minutes: schedule.freeAfterMin,
     })
   }

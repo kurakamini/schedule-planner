@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildSchedule } from './scheduler'
 import { deltaClass, formatDelta, itemDelta, overallDelta } from './rta'
-import type { PlanItem, TonightPlan } from '../types'
+import type { PlanItem, ScenePlan } from '../types'
 
 function item(over: Partial<PlanItem> & { id: string }): PlanItem {
   return {
@@ -18,10 +18,10 @@ function makePlan(
   items: PlanItem[],
   anchorAt: number,
   baselineEnds?: Record<string, number>,
-): TonightPlan {
+): ScenePlan {
   return {
-    nightKey: '2026-07-08',
-    bedtime: 1470,
+    dayKey: '2026-07-08',
+    endAt: 1470,
     started: true,
     anchorAt,
     items,
@@ -29,11 +29,11 @@ function makePlan(
   }
 }
 
-function scheduleOf(plan: TonightPlan) {
+function scheduleOf(plan: ScenePlan) {
   return buildSchedule({
     items: plan.items.filter((it) => it.included && !it.done),
     now: plan.anchorAt,
-    bedtime: plan.bedtime,
+    endAt: plan.endAt,
   })
 }
 

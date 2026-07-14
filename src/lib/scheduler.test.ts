@@ -29,7 +29,7 @@ describe('buildSchedule', () => {
         fixedItem('配信', '22:00', 30, 3),
       ],
       now: t('21:10'),
-      bedtime: t('24:30'),
+      endAt: t('24:30'),
     })
 
     expect(result.scheduled).toEqual([
@@ -50,7 +50,7 @@ describe('buildSchedule', () => {
     const result = buildSchedule({
       items: [flex('a', 30, 0), flex('b', 45, 1)],
       now: t('21:10'),
-      bedtime: t('24:30'),
+      endAt: t('24:30'),
     })
 
     expect(result.scheduled).toEqual([
@@ -63,7 +63,7 @@ describe('buildSchedule', () => {
   })
 
   it('空リストなら全部が自由時間', () => {
-    const result = buildSchedule({ items: [], now: t('21:10'), bedtime: t('24:30') })
+    const result = buildSchedule({ items: [], now: t('21:10'), endAt: t('24:30') })
 
     expect(result.scheduled).toEqual([])
     expect(result.gaps).toEqual([])
@@ -73,7 +73,7 @@ describe('buildSchedule', () => {
   })
 
   it('就寝時刻を過ぎていたら自由時間は 0(負にならない)', () => {
-    const result = buildSchedule({ items: [], now: t('25:00'), bedtime: t('24:30') })
+    const result = buildSchedule({ items: [], now: t('25:00'), endAt: t('24:30') })
 
     expect(result.freeAfterMin).toBe(0)
     expect(result.freeTotalMin).toBe(0)
@@ -83,7 +83,7 @@ describe('buildSchedule', () => {
     const result = buildSchedule({
       items: [flex('a', 30, 0), flex('b', 30, 1)],
       now: t('24:10'),
-      bedtime: t('24:30'),
+      endAt: t('24:30'),
     })
 
     // 配置自体はされる(a は 24:10〜24:40、b は 24:40〜25:10)
@@ -92,7 +92,7 @@ describe('buildSchedule', () => {
       { itemId: 'b', start: t('24:40'), end: t('25:10') },
     ])
     expect(result.overflowItemIds).toEqual(['a', 'b'])
-    expect(result.warnings).toEqual([{ type: 'overBedtime', overrunMin: 40 }])
+    expect(result.warnings).toEqual([{ type: 'overEnd', overrunMin: 40 }])
     expect(result.freeTotalMin).toBe(0)
   })
 
@@ -100,7 +100,7 @@ describe('buildSchedule', () => {
     const result = buildSchedule({
       items: [fixedItem('配信', '22:00', 30, 0), flex('a', 30, 1)],
       now: t('23:20'),
-      bedtime: t('24:30'),
+      endAt: t('24:30'),
     })
 
     // 固定は動かさない。過去の固定は可変タスクの配置を妨げない
@@ -116,7 +116,7 @@ describe('buildSchedule', () => {
     const result = buildSchedule({
       items: [fixedItem('A', '22:00', 40, 0), fixedItem('B', '22:30', 30, 1)],
       now: t('21:00'),
-      bedtime: t('24:30'),
+      endAt: t('24:30'),
     })
 
     expect(result.warnings).toEqual([
@@ -137,7 +137,7 @@ describe('buildSchedule', () => {
         flex('a', 30, 2),
       ],
       now: t('21:10'),
-      bedtime: t('24:30'),
+      endAt: t('24:30'),
     })
 
     // a(30 分)は 21:10〜21:30(20 分)にも 22:00〜22:10(10 分)にも収まらない
@@ -158,7 +158,7 @@ describe('buildSchedule', () => {
     const result = buildSchedule({
       items: [fixedItem('配信', '22:00', 30, 0)],
       now: t('21:00'),
-      bedtime: t('24:30'),
+      endAt: t('24:30'),
     })
 
     expect(result.gaps).toEqual([{ start: t('21:00'), end: t('22:00') }])
@@ -174,7 +174,7 @@ describe('buildSchedule', () => {
         flex('b', 120, 2), // 22:30〜24:30 ちょうどで就寝
       ],
       now: t('21:10'),
-      bedtime: t('24:30'),
+      endAt: t('24:30'),
     })
 
     expect(result.scheduled).toEqual([
@@ -193,7 +193,7 @@ describe('buildSchedule', () => {
     const result = buildSchedule({
       items: [flex('c', 10, 5), flex('a', 10, 1), flex('b', 10, 3)],
       now: t('21:00'),
-      bedtime: t('24:30'),
+      endAt: t('24:30'),
     })
 
     expect(result.scheduled.map((s) => s.itemId)).toEqual(['a', 'b', 'c'])

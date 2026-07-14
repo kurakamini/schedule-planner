@@ -13,18 +13,18 @@ export type Gap = { start: number; end: number }
 export type Warning =
   | { type: 'fixedOverlap'; itemIds: [string, string] } // 固定予定同士が重なっている
   | { type: 'fixedPast'; itemId: string } // 固定予定の開始時刻を現在時刻が過ぎている
-  | { type: 'overBedtime'; overrunMin: number } // 就寝時刻に収まらない(超過分)
+  | { type: 'overEnd'; overrunMin: number } // 終了時刻に収まらない(超過分)
 
 export type ScheduleResult = {
   /** 全項目の配置(超過分も含む)。開始時刻順 */
   scheduled: Scheduled[]
   /** 固定予定待ちの空き時間(タイムラインに「自由時間」行として表示) */
   gaps: Gap[]
-  /** 最終タスク後〜就寝の自由時間(分) */
+  /** 最終タスク後〜終了の自由時間(分) */
   freeAfterMin: number
   /** gaps + freeAfterMin */
   freeTotalMin: number
-  /** 就寝時刻を越える項目(自動では削らない。外すのはユーザーの判断) */
+  /** 終了時刻を越える項目(自動では削らない。外すのはユーザーの判断) */
   overflowItemIds: string[]
   warnings: Warning[]
 }
@@ -40,9 +40,9 @@ export type ScheduleResult = {
 export function buildSchedule(input: {
   items: PlanItem[]
   now: number
-  bedtime: number
+  endAt: number
 }): ScheduleResult {
-  const { items, now, bedtime } = input
+  const { items, now, endAt } = input
 
   const fixed = items
     .filter((i) => i.fixedStart !== undefined)
@@ -122,10 +122,10 @@ export function buildSchedule(input: {
 
   scheduled.sort((a, b) => a.start - b.start)
 
-  // 4. 空き時間 = [now, bedtime] から配置済み区間を除いた残り
+  // 4. 空き時間 = [now, endAt] から配置済み区間を除いた残り
   const busy = mergeIntervals(
     scheduled
-      .map((s) => ({ start: Math.max(s.start, now), end: Math.min(s.end, bedtime) }))
+      .map((s) => ({ start: Math.max(s.start, now), end: Math.min(s.end, endAt) }))
       .filter((b) => b.end > b.start)
       .sort((a, b) => a.start - b.start),
   )
@@ -135,25 +135,25 @@ export function buildSchedule(input: {
     if (b.start > c) free.push({ start: c, end: b.start })
     c = Math.max(c, b.end)
   }
-  if (c < bedtime) free.push({ start: c, end: bedtime })
+  if (c < endAt) free.push({ start: c, end: endAt })
 
-  // 末尾が就寝時刻まで届く空きは「最終タスク後の自由時間」、それ以外は隙間
+  // 末尾が終了時刻まで届く空きは「最終タスク後の自由時間」、それ以外は隙間
   let freeAfterMin = 0
   let gaps = free
   const lastFree = free[free.length - 1]
-  if (lastFree && lastFree.end === bedtime) {
+  if (lastFree && lastFree.end === endAt) {
     freeAfterMin = lastFree.end - lastFree.start
     gaps = free.slice(0, -1)
   }
   const freeTotalMin = free.reduce((sum, g) => sum + (g.end - g.start), 0)
 
-  // 5. 就寝時刻を越える項目
+  // 5. 終了時刻を越える項目
   const overflowItemIds = scheduled
-    .filter((s) => s.end > bedtime)
+    .filter((s) => s.end > endAt)
     .map((s) => s.itemId)
   if (overflowItemIds.length > 0) {
     const maxEnd = Math.max(...scheduled.map((s) => s.end))
-    warnings.push({ type: 'overBedtime', overrunMin: maxEnd - bedtime })
+    warnings.push({ type: 'overEnd', overrunMin: maxEnd - endAt })
   }
 
   return { scheduled, gaps, freeAfterMin, freeTotalMin, overflowItemIds, warnings }
