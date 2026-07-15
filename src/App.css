@@ -12,9 +12,22 @@
 
 .app-header h1 {
   margin: 0;
-  font-size: 1.05rem;
-  color: var(--text-sub);
-  font-weight: 600;
+  font-size: 1.35rem;
+  color: var(--text);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+/* タイトル前のアクセントバー(場所を取らずに目を引かせる) */
+.app-header h1::before {
+  content: '';
+  display: inline-block;
+  width: 5px;
+  height: 1.05em;
+  border-radius: 3px;
+  background: var(--accent);
+  margin-right: 0.5rem;
+  vertical-align: -0.16em;
 }
 
 .app-content {
