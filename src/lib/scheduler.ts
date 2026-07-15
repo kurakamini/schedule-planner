@@ -36,6 +36,8 @@ export type ScheduleResult = {
  * - 固定時刻タスクはユーザー指定の時刻を常に尊重する(過去でも動かさず警告のみ)
  * - 可変タスクは order 順を保ったまま、現在時刻から固定予定の隙間へ詰める。
  *   隙間に収まらない場合は固定予定の後ろへ送る(順序の入れ替えはしない)
+ * - 並び順で固定タスクより後ろの可変タスクは、固定の前の隙間へ繰り上げない
+ *   (並び順=実行順。固定の前にやりたいタスクは上に並べる)
  */
 export function buildSchedule(input: {
   items: PlanItem[]
@@ -47,9 +49,6 @@ export function buildSchedule(input: {
   const fixed = items
     .filter((i) => i.fixedStart !== undefined)
     .sort((a, b) => a.fixedStart! - b.fixedStart! || a.order - b.order)
-  const flex = items
-    .filter((i) => i.fixedStart === undefined)
-    .sort((a, b) => a.order - b.order)
 
   const scheduled: Scheduled[] = []
   const warnings: Warning[] = []
@@ -83,41 +82,36 @@ export function buildSchedule(input: {
     }
   }
 
-  // 2. 可変タスクの配置を妨げる区間(現在時刻以降に残っている固定予定)を作る
-  const blockers: Gap[] = []
-  for (const item of fixed) {
-    const start = Math.max(item.fixedStart!, now)
-    const end = item.fixedStart! + item.durationMin
-    if (end > start) blockers.push({ start, end })
-  }
-  blockers.sort((a, b) => a.start - b.start)
-  const mergedBlockers = mergeIntervals(blockers)
+  // 2. 可変タスクの配置を妨げる区間(固定予定の時間帯)を作る
+  const blockers = mergeIntervals(
+    fixed
+      .map((i) => ({
+        start: i.fixedStart!,
+        end: i.fixedStart! + i.durationMin,
+      }))
+      .sort((a, b) => a.start - b.start),
+  )
 
-  // 3. 可変タスクを order 順にカーソル配置
+  // 3. 全項目を order 順にたどってカーソル配置する。
+  //    固定項目を通過したらカーソルをその終了時刻まで進めるため、
+  //    並び順で固定より後ろの可変タスクは固定の前へ繰り上がらない
+  //    (画面の並び順=実行順。固定の前にやりたいタスクは上に並べる)。
+  //    可変項目はカーソル以降で固定予定と重ならない最初の位置に置く
+  const byOrder = [...items].sort((a, b) => a.order - b.order)
   let cursor = now
-  let bi = 0
-  for (const item of flex) {
-    for (;;) {
-      // カーソルより手前・カーソルを含むブロッカーを消化する
-      while (bi < mergedBlockers.length && mergedBlockers[bi].start <= cursor) {
-        if (cursor < mergedBlockers[bi].end) cursor = mergedBlockers[bi].end
-        bi++
-      }
-      const next = bi < mergedBlockers.length ? mergedBlockers[bi] : undefined
-      if (next && cursor + item.durationMin > next.start) {
-        // 次の固定予定までに収まらない → 固定予定の後ろへ送る(空きは自由時間になる)
-        cursor = next.end
-        bi++
-        continue
-      }
-      scheduled.push({
-        itemId: item.id,
-        start: cursor,
-        end: cursor + item.durationMin,
-      })
-      cursor += item.durationMin
-      break
+  for (const item of byOrder) {
+    if (item.fixedStart !== undefined) {
+      cursor = Math.max(cursor, item.fixedStart + item.durationMin)
+      continue // 配置は手順 1 で済んでいる
     }
+    let start = cursor
+    for (const b of blockers) {
+      if (b.end <= start) continue // 通過済みの固定予定
+      if (start + item.durationMin <= b.start) break // 次の固定予定の前に収まる
+      start = Math.max(start, b.end) // 収まらない → 固定予定の後ろへ(空きは自由時間になる)
+    }
+    scheduled.push({ itemId: item.id, start, end: start + item.durationMin })
+    cursor = start + item.durationMin
   }
 
   scheduled.sort((a, b) => a.start - b.start)

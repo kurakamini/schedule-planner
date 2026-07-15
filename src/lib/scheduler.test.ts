@@ -189,6 +189,35 @@ describe('buildSchedule', () => {
     expect(result.warnings).toEqual([])
   })
 
+  it('並び順で固定より後ろの可変タスクは、固定の前の隙間に繰り上がらない', () => {
+    // 朝 6:50 開始、📌 朝食 7:00〜7:15 の下に弁当(5 分)を並べたケース。
+    // 隙間 10 分に収まっても繰り上げず、朝食の後に置く(空きは自由時間)
+    const result = buildSchedule({
+      items: [fixedItem('朝食', '7:00', 15, 0), flex('弁当', 5, 1)],
+      now: t('6:50'),
+      endAt: t('8:00'),
+    })
+
+    expect(result.scheduled).toEqual([
+      { itemId: '朝食', start: t('7:00'), end: t('7:15') },
+      { itemId: '弁当', start: t('7:15'), end: t('7:20') },
+    ])
+    expect(result.gaps).toEqual([{ start: t('6:50'), end: t('7:00') }])
+  })
+
+  it('並び順で固定より前の可変タスクは、固定の前の隙間に入れる', () => {
+    const result = buildSchedule({
+      items: [flex('弁当', 5, 0), fixedItem('朝食', '7:00', 15, 1)],
+      now: t('6:50'),
+      endAt: t('8:00'),
+    })
+
+    expect(result.scheduled).toEqual([
+      { itemId: '弁当', start: t('6:50'), end: t('6:55') },
+      { itemId: '朝食', start: t('7:00'), end: t('7:15') },
+    ])
+  })
+
   it('order がばらばらでも可変タスクは order 順に配置する', () => {
     const result = buildSchedule({
       items: [flex('c', 10, 5), flex('a', 10, 1), flex('b', 10, 3)],
