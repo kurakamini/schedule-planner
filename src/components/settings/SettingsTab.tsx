@@ -15,9 +15,11 @@ export function SettingsTab() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [confirmingClear, setConfirmingClear] = useState(false)
 
-  const end = parseNightTime(form.end)
+  // デフォルト終了時刻は空欄 = 終了なし(所要時間だけで組むシーン)
+  const endEmpty = form.end.trim() === ''
+  const end = endEmpty ? null : parseNightTime(form.end)
   const nameInvalid = form.name.trim() === ''
-  const endInvalid = end === null
+  const endInvalid = !endEmpty && end === null
   const canSubmit = !nameInvalid && !endInvalid
 
   function resetForm() {
@@ -27,8 +29,8 @@ export function SettingsTab() {
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    if (!canSubmit || end === null) return
-    const input = { name: form.name.trim(), defaultEnd: end }
+    if (!canSubmit) return
+    const input = { name: form.name.trim(), defaultEnd: end ?? undefined }
     if (editingId) {
       updateScene(editingId, input)
     } else {
@@ -39,7 +41,10 @@ export function SettingsTab() {
 
   function startEdit(s: Scene) {
     setEditingId(s.id)
-    setForm({ name: s.name, end: formatNightTime(s.defaultEnd) })
+    setForm({
+      name: s.name,
+      end: s.defaultEnd !== undefined ? formatNightTime(s.defaultEnd) : '',
+    })
   }
 
   function handleDelete(s: Scene) {
@@ -76,7 +81,10 @@ export function SettingsTab() {
               <div className="routine-main">
                 <span className="routine-name">{s.name}</span>
                 <span className="routine-meta">
-                  終了 {formatNightTime(s.defaultEnd)}
+                  終了{' '}
+                  {s.defaultEnd !== undefined
+                    ? formatNightTime(s.defaultEnd)
+                    : 'なし'}
                 </span>
               </div>
               <div className="routine-actions">
@@ -115,16 +123,17 @@ export function SettingsTab() {
             />
           </div>
           <div className="field">
-            <label htmlFor="scene-end">デフォルト終了時刻</label>
+            <label htmlFor="scene-end">デフォルト終了時刻(任意)</label>
             <p className="hint">
               夜なら就寝、朝なら出発の時刻。コロンなし(2430)でも入力可。深夜 0
-              時越えは 24:30、25:00 の表記
+              時越えは 24:30、25:00 の表記。空欄にすると締切なし
+              (休日の家事など、所要時間だけで組むシーン向け)
             </p>
             <input
               id="scene-end"
               className="time-input"
               inputMode="numeric"
-              placeholder="8:00"
+              placeholder="なし"
               value={form.end}
               onChange={(e) => setForm({ ...form, end: e.target.value })}
             />

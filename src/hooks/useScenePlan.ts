@@ -64,7 +64,7 @@ function reanchor(prev: ScenePlan, nextItems: PlanItem[]): number {
 function syncWithRoutines(
   stored: ScenePlan | null,
   routines: RoutineTask[],
-  defaultEnd: number,
+  defaultEnd: number | undefined, // undefined = 終了なしシーン
 ): ScenePlan {
   const dayKey = getNightKey(new Date())
   const prev = stored !== null && stored.dayKey === dayKey ? stored : null
@@ -235,8 +235,9 @@ export function useScenePlan(scene: Scene, routines: RoutineTask[]) {
     [mutate],
   )
 
+  /** 終了時刻の設定。undefined = 終了なし(入力欄を空にした) */
   const setEndAt = useCallback(
-    (endAt: number) => {
+    (endAt: number | undefined) => {
       mutate((prev) => ({ ...prev, endAt }))
     },
     [mutate],

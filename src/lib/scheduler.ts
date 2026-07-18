@@ -42,7 +42,8 @@ export type ScheduleResult = {
 export function buildSchedule(input: {
   items: PlanItem[]
   now: number
-  endAt: number
+  /** 終了時刻。undefined = 終了なし(超過警告・最終タスク後の自由時間を出さない) */
+  endAt?: number
 }): ScheduleResult {
   const { items, now, endAt } = input
 
@@ -116,36 +117,44 @@ export function buildSchedule(input: {
 
   scheduled.sort((a, b) => a.start - b.start)
 
-  // 4. 空き時間 = [now, endAt] から配置済み区間を除いた残り
-  const busy = mergeIntervals(
+  // 4. 空き時間 = [now, horizon] から配置済み区間を除いた残り。
+  //    horizon は終了時刻。終了なしのときは最後のタスクの終了まで
+  //    (「最終タスク後の自由時間」がなくなり、固定予定待ちの隙間だけ残る)
+  const rawBusy = mergeIntervals(
     scheduled
-      .map((s) => ({ start: Math.max(s.start, now), end: Math.min(s.end, endAt) }))
+      .map((s) => ({ start: Math.max(s.start, now), end: s.end }))
       .filter((b) => b.end > b.start)
       .sort((a, b) => a.start - b.start),
   )
+  const horizon =
+    endAt ?? (rawBusy.length > 0 ? rawBusy[rawBusy.length - 1].end : now)
+  const busy = rawBusy
+    .map((b) => ({ start: b.start, end: Math.min(b.end, horizon) }))
+    .filter((b) => b.end > b.start)
   const free: Gap[] = []
   let c = now
   for (const b of busy) {
     if (b.start > c) free.push({ start: c, end: b.start })
     c = Math.max(c, b.end)
   }
-  if (c < endAt) free.push({ start: c, end: endAt })
+  if (c < horizon) free.push({ start: c, end: horizon })
 
   // 末尾が終了時刻まで届く空きは「最終タスク後の自由時間」、それ以外は隙間
   let freeAfterMin = 0
   let gaps = free
   const lastFree = free[free.length - 1]
-  if (lastFree && lastFree.end === endAt) {
+  if (endAt !== undefined && lastFree && lastFree.end === endAt) {
     freeAfterMin = lastFree.end - lastFree.start
     gaps = free.slice(0, -1)
   }
   const freeTotalMin = free.reduce((sum, g) => sum + (g.end - g.start), 0)
 
-  // 5. 終了時刻を越える項目
-  const overflowItemIds = scheduled
-    .filter((s) => s.end > endAt)
-    .map((s) => s.itemId)
-  if (overflowItemIds.length > 0) {
+  // 5. 終了時刻を越える項目(終了なしのときは超過という概念がない)
+  const overflowItemIds =
+    endAt !== undefined
+      ? scheduled.filter((s) => s.end > endAt).map((s) => s.itemId)
+      : []
+  if (endAt !== undefined && overflowItemIds.length > 0) {
     const maxEnd = Math.max(...scheduled.map((s) => s.end))
     warnings.push({ type: 'overEnd', overrunMin: maxEnd - endAt })
   }

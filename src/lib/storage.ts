@@ -178,7 +178,7 @@ function isScene(v: unknown): v is Scene {
     isRecord(v) &&
     typeof v.id === 'string' &&
     typeof v.name === 'string' &&
-    typeof v.defaultEnd === 'number' &&
+    isOptional(v.defaultEnd, 'number') && // undefined = 終了なし
     typeof v.order === 'number'
   )
 }
@@ -243,7 +243,7 @@ function isScenePlan(v: unknown): v is ScenePlan {
   return (
     isRecord(v) &&
     typeof v.dayKey === 'string' &&
-    typeof v.endAt === 'number' &&
+    isOptional(v.endAt, 'number') && // undefined = 終了なし
     isPlanBody(v)
   )
 }

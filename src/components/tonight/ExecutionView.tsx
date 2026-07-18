@@ -40,7 +40,12 @@ export function ExecutionView({
   const allDone = included.length > 0 && pending.length === 0
   const current = schedule.scheduled[0]
   const currentItem = current ? byId.get(current.itemId) : undefined
-  const untilEnd = plan.endAt - now
+  const untilEnd = plan.endAt !== undefined ? plan.endAt - now : null
+  // 終了なしのときは残り時間の代わりに、残タスクから算出した終了見込みを出す
+  const finishEstimate =
+    schedule.scheduled.length > 0
+      ? Math.max(...schedule.scheduled.map((s) => s.end))
+      : null
   // RTA 風の予定比: 最後に完了したタスク時点の、基準タイムとのズレ(スプリット差)
   const delta = overallDelta(plan)
 
@@ -48,8 +53,16 @@ export function ExecutionView({
     <section>
       <h2>{scene.name}のスケジュール</h2>
       <p className="exec-header">
-        終了まで {untilEnd >= 0 ? formatDuration(untilEnd) : '—(終了時刻を過ぎています)'}
-        ・自由時間 合計 {formatDuration(schedule.freeTotalMin)}
+        {untilEnd !== null ? (
+          <>
+            終了まで {untilEnd >= 0 ? formatDuration(untilEnd) : '—(終了時刻を過ぎています)'}
+            ・自由時間 合計 {formatDuration(schedule.freeTotalMin)}
+          </>
+        ) : finishEstimate !== null ? (
+          <>終わる見込み {formatNightTime(finishEstimate)}</>
+        ) : (
+          <>全タスク完了</>
+        )}
         {delta !== null && (
           <>
             ・予定比{' '}
@@ -65,9 +78,11 @@ export function ExecutionView({
           <p className="celebration-emoji">🎉</p>
           <p className="celebration-title">おつかれさま!全部終わりました</p>
           <p>
-            {untilEnd > 0
-              ? `終了まで自由時間 ${formatDuration(untilEnd)}。堂々とどうぞ`
-              : '終了時刻を過ぎています。おつかれさまでした'}
+            {untilEnd === null
+              ? 'きょうの分は完走です。あとは堂々と自由にどうぞ'
+              : untilEnd > 0
+                ? `終了まで自由時間 ${formatDuration(untilEnd)}。堂々とどうぞ`
+                : '終了時刻を過ぎています。おつかれさまでした'}
           </p>
         </div>
       ) : (

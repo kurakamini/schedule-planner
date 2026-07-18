@@ -11,7 +11,8 @@ import {
 
 export type SceneInput = {
   name: string
-  defaultEnd: number
+  /** undefined = 終了なし(所要時間だけで組むシーン) */
+  defaultEnd?: number
 }
 
 /** order を 0 始まりの連番に振り直す(常にこの形で保存する) */

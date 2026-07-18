@@ -6,8 +6,11 @@ export type Scene = {
   id: string
   /** 例: 夜、朝、休日 */
   name: string
-  /** デフォルト終了時刻(夜通算分)。夜なら就寝、朝なら出発に相当 */
-  defaultEnd: number
+  /**
+   * デフォルト終了時刻(夜通算分)。夜なら就寝、朝なら出発に相当。
+   * undefined = 終了なし(締切を決めず所要時間だけで組むシーン。休日の家事など)
+   */
+  defaultEnd?: number
   /** セレクタの表示順 */
   order: number
 }
@@ -44,8 +47,8 @@ export type PlanItem = {
 export type ScenePlan = {
   /** 日の識別子(例 "2026-07-08"、朝 4 時境界)。起動時に不一致なら破棄する(F5) */
   dayKey: string
-  /** 当日の終了時刻(夜通算分)。夜なら就寝、朝なら出発 */
-  endAt: number
+  /** 当日の終了時刻(夜通算分)。undefined = 終了なし(所要時間だけで組む) */
+  endAt?: number
   /** false=プラン作成ビュー / true=実行ビュー */
   started: boolean
   /**

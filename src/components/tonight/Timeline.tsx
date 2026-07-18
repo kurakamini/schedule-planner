@@ -55,7 +55,8 @@ export function Timeline({
       minutes: g.end - g.start,
     })),
   ]
-  if (schedule.freeAfterMin > 0) {
+  // 最終タスク後の自由時間は終了時刻があるときだけ存在する(終了なしなら常に 0)
+  if (schedule.freeAfterMin > 0 && plan.endAt !== undefined) {
     rows.push({
       kind: 'free',
       start: plan.endAt - schedule.freeAfterMin,
