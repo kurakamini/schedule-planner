@@ -10,7 +10,8 @@ type Props = {
   onToggle: (id: string) => void
   onMove: (id: string, direction: -1 | 1) => void
   onAdd: (input: AdhocInput) => void
-  onSetEndAt: (endAt: number) => void
+  /** undefined = 終了なし(入力欄が空) */
+  onSetEndAt: (endAt: number | undefined) => void
   onSetAnchor: (anchorAt: number) => void
   onStart: () => void
 }
@@ -30,7 +31,9 @@ export function PlanEditor({
   const [anchorDraft, setAnchorDraft] = useState(() =>
     formatNightTime(plan.anchorAt),
   )
-  const [endDraft, setEndDraft] = useState(() => formatNightTime(plan.endAt))
+  const [endDraft, setEndDraft] = useState(() =>
+    plan.endAt !== undefined ? formatNightTime(plan.endAt) : '',
+  )
 
   // 画面復帰時の追従などフック側で anchorAt が変わった時に入力欄へ反映する。
   // 入力中(ドラフトが同じ値にパースされる時)は書き換えず、打ちかけを壊さない
@@ -43,9 +46,11 @@ export function PlanEditor({
   }, [plan.anchorAt])
 
   const anchorParsed = parseNightTime(anchorDraft)
-  const endParsed = parseNightTime(endDraft)
+  // 終了時刻は空欄 = 終了なし(締切を決めず所要時間だけで組む)
+  const endEmpty = endDraft.trim() === ''
+  const endParsed = endEmpty ? null : parseNightTime(endDraft)
   const anchorInvalid = anchorParsed === null
-  const endInvalid = endParsed === null
+  const endInvalid = !endEmpty && endParsed === null
   // 開始時刻が終了時刻以降だとスケジュールが成立しない(表示も矛盾する)ため弾く
   const orderInvalid =
     anchorParsed !== null && endParsed !== null && anchorParsed >= endParsed
@@ -61,6 +66,10 @@ export function PlanEditor({
 
   function handleEndChange(value: string) {
     setEndDraft(value)
+    if (value.trim() === '') {
+      onSetEndAt(undefined) // 空欄 = 終了なし
+      return
+    }
     const parsed = parseNightTime(value)
     if (parsed !== null) onSetEndAt(parsed)
   }
@@ -91,6 +100,7 @@ export function PlanEditor({
             id="plan-end"
             className="time-input"
             inputMode="numeric"
+            placeholder="なし"
             value={endDraft}
             onChange={(e) => handleEndChange(e.target.value)}
             onBlur={() => {
@@ -103,7 +113,7 @@ export function PlanEditor({
       </div>
       <p className="hint">
         時刻は 2130 のようにコロンなしでも入力できます(深夜 0 時越えは 2430 =
-        24:30)
+        24:30)。終了時刻を空欄にすると締切なしで組みます
       </p>
       {anchorInvalid && (
         <p className="field-error" role="alert">

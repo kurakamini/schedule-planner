@@ -449,6 +449,80 @@ describe('SceneTab: 日の切り替わり(F5)', () => {
   })
 })
 
+describe('SceneTab: 終了なしプラン', () => {
+  const HOLIDAY = { id: 'holiday', name: '休日家事', order: 1 } // defaultEnd なし
+
+  function seedHoliday() {
+    vi.setSystemTime(new Date(2026, 6, 8, 13, 0)) // 休日の昼 13:00
+    saveScenes([NIGHT, HOLIDAY])
+    saveCurrentSceneId(HOLIDAY.id)
+    saveRoutines(HOLIDAY.id, [
+      { id: 'h1', name: '掃除', durationMin: 30, order: 0 },
+      { id: 'h2', name: '買い出し', durationMin: 60, order: 1 },
+    ])
+  }
+
+  it('終了なしシーンは終了時刻が空欄のまま作成でき、ヘッダに終わる見込みが出る', () => {
+    seedHoliday()
+    render(<SceneTab />)
+
+    expect(screen.getByLabelText('終了時刻')).toHaveValue('')
+    expect(createButton()).not.toBeDisabled()
+    fireEvent.click(createButton())
+
+    // 13:00 開始で掃除 30 分+買い出し 60 分 → 見込み 14:30。「終了まで」は出ない
+    expect(screen.getByText(/終わる見込み 14:30/)).toBeInTheDocument()
+    expect(screen.queryByText(/終了まで/)).not.toBeInTheDocument()
+    expect(tlRows()).toEqual([
+      '13:00〜13:30掃除',
+      '13:30〜14:30買い出し',
+    ])
+  })
+
+  it('終了なしでも予定比は出て、早い完了で見込みが縮む', () => {
+    seedHoliday()
+    render(<SceneTab />)
+    fireEvent.click(createButton())
+
+    vi.setSystemTime(new Date(2026, 6, 8, 13, 20))
+    fireEvent.click(screen.getByRole('button', { name: '完了' })) // 掃除を 13:20 完了
+
+    // 予定 13:30 → 実績 13:20 = -10分(行と全体)。買い出しは 13:20〜14:20 に前倒し
+    expect(screen.getAllByText('-10分')).toHaveLength(2)
+    expect(screen.getByText(/終わる見込み 14:20/)).toBeInTheDocument()
+  })
+
+  it('終了なしの全完了はご褒美画面(自由時間表記なし)になる', () => {
+    seedHoliday()
+    render(<SceneTab />)
+    fireEvent.click(createButton())
+    fireEvent.click(screen.getByRole('button', { name: '完了' }))
+    fireEvent.click(screen.getByRole('button', { name: '完了' }))
+
+    expect(
+      screen.getByText('おつかれさま!全部終わりました'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('きょうの分は完走です。あとは堂々と自由にどうぞ'),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/全タスク完了/)).toBeInTheDocument()
+  })
+
+  it('終了ありのシーンでも、終了時刻を空欄にすれば締切なしで組める', () => {
+    render(<SceneTab />) // 夜シーン(21:10、デフォルト 24:30)
+    fireEvent.change(screen.getByLabelText('終了時刻'), {
+      target: { value: '' },
+    })
+    expect(createButton()).not.toBeDisabled()
+    fireEvent.click(createButton())
+
+    expect(screen.getByText(/終わる見込み/)).toBeInTheDocument()
+    expect(screen.queryByText(/終了まで/)).not.toBeInTheDocument()
+    // 終了なしなので「収まりません」警告も出ない
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+})
+
 describe('SceneTab: シーン切り替え', () => {
   const MORNING = { id: 'morning', name: '朝', defaultEnd: 480, order: 1 }
 

@@ -24,7 +24,7 @@ afterEach(() => {
 
 function addScene(name: string, end: string) {
   fireEvent.change(screen.getByLabelText('名前'), { target: { value: name } })
-  fireEvent.change(screen.getByLabelText('デフォルト終了時刻'), {
+  fireEvent.change(screen.getByLabelText('デフォルト終了時刻(任意)'), {
     target: { value: end },
   })
   fireEvent.click(screen.getByRole('button', { name: '追加' }))
@@ -47,9 +47,9 @@ describe('SettingsTab: シーン管理', () => {
     render(<SettingsTab />)
     fireEvent.click(screen.getByRole('button', { name: '夜 を編集' }))
     expect(screen.getByLabelText('名前')).toHaveValue('夜')
-    expect(screen.getByLabelText('デフォルト終了時刻')).toHaveValue('24:30')
+    expect(screen.getByLabelText('デフォルト終了時刻(任意)')).toHaveValue('24:30')
 
-    fireEvent.change(screen.getByLabelText('デフォルト終了時刻'), {
+    fireEvent.change(screen.getByLabelText('デフォルト終了時刻(任意)'), {
       target: { value: '2500' }, // コロンなし入力
     })
     fireEvent.click(screen.getByRole('button', { name: '更新' }))
@@ -58,10 +58,25 @@ describe('SettingsTab: シーン管理', () => {
     expect(loadScenes()).toMatchObject([{ name: '夜', defaultEnd: 1500 }])
   })
 
+  it('デフォルト終了時刻を空欄にすると終了なしシーンとして追加できる', () => {
+    render(<SettingsTab />)
+    fireEvent.change(screen.getByLabelText('名前'), {
+      target: { value: '休日家事' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: '追加' }))
+
+    expect(screen.getByText('終了 なし')).toBeInTheDocument()
+    expect(loadScenes()).toMatchObject([
+      { name: '夜', defaultEnd: 1470 },
+      { name: '休日家事' },
+    ])
+    expect(loadScenes()[1].defaultEnd).toBeUndefined()
+  })
+
   it('不正な時刻はエラーを表示し、追加ボタンが無効になる', () => {
     render(<SettingsTab />)
     fireEvent.change(screen.getByLabelText('名前'), { target: { value: '朝' } })
-    fireEvent.change(screen.getByLabelText('デフォルト終了時刻'), {
+    fireEvent.change(screen.getByLabelText('デフォルト終了時刻(任意)'), {
       target: { value: 'abc' },
     })
     expect(screen.getByRole('alert')).toHaveTextContent(/24:30 のように/)

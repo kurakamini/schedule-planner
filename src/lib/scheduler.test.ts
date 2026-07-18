@@ -218,6 +218,38 @@ describe('buildSchedule', () => {
     ])
   })
 
+  it('終了なし(endAt 省略)なら超過警告も最終タスク後の自由時間も出ない', () => {
+    const result = buildSchedule({
+      items: [
+        flex('掃除', 30, 0),
+        fixedItem('洗濯機を回す', '14:00', 10, 1),
+        flex('買い出し', 60, 2),
+      ],
+      now: t('13:00'),
+    })
+
+    // 配置は通常どおり(固定を追い越さない・隙間は自由時間)
+    expect(result.scheduled).toEqual([
+      { itemId: '掃除', start: t('13:00'), end: t('13:30') },
+      { itemId: '洗濯機を回す', start: t('14:00'), end: t('14:10') },
+      { itemId: '買い出し', start: t('14:10'), end: t('15:10') },
+    ])
+    expect(result.gaps).toEqual([{ start: t('13:30'), end: t('14:00') }])
+    // 締切がないので超過・最終タスク後の自由時間という概念がない
+    expect(result.overflowItemIds).toEqual([])
+    expect(result.warnings).toEqual([])
+    expect(result.freeAfterMin).toBe(0)
+    expect(result.freeTotalMin).toBe(30)
+  })
+
+  it('終了なしでタスクが空なら自由時間 0(クラッシュしない)', () => {
+    const result = buildSchedule({ items: [], now: t('13:00') })
+    expect(result.scheduled).toEqual([])
+    expect(result.gaps).toEqual([])
+    expect(result.freeAfterMin).toBe(0)
+    expect(result.freeTotalMin).toBe(0)
+  })
+
   it('order がばらばらでも可変タスクは order 順に配置する', () => {
     const result = buildSchedule({
       items: [flex('c', 10, 5), flex('a', 10, 1), flex('b', 10, 3)],
