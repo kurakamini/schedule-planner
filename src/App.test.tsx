@@ -7,16 +7,16 @@ beforeEach(() => {
 })
 
 describe('App', () => {
-  it('タイトルと下部タブバーが表示され、初期タブは「今夜」', () => {
+  it('タイトルと下部タブバーが表示され、初期タブは「きょう」(デフォルトシーンは夜)', () => {
     render(<App />)
     expect(
       screen.getByRole('heading', { name: 'スケジュール計画立案' }),
     ).toBeInTheDocument()
     expect(
-      screen.getByRole('button', { name: '今夜' }),
+      screen.getByRole('button', { name: 'きょう' }),
     ).toHaveAttribute('aria-current', 'page')
     expect(
-      screen.getByRole('heading', { name: '今夜のプラン' }),
+      screen.getByRole('heading', { name: '夜のプラン' }),
     ).toBeInTheDocument()
   })
 
@@ -24,14 +24,16 @@ describe('App', () => {
     render(<App />)
 
     fireEvent.click(screen.getByRole('button', { name: 'ルーチン' }))
-    expect(screen.getByRole('heading', { name: 'ルーチン' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: '夜のルーチン' }),
+    ).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: '設定' }))
     expect(screen.getByRole('heading', { name: '設定' })).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: '今夜' }))
+    fireEvent.click(screen.getByRole('button', { name: 'きょう' }))
     expect(
-      screen.getByRole('heading', { name: '今夜のプラン' }),
+      screen.getByRole('heading', { name: '夜のプラン' }),
     ).toBeInTheDocument()
   })
 })

@@ -1,5 +1,6 @@
-import type { PlanItem, TonightPlan } from '../../types'
+import type { PlanItem, ScenePlan } from '../../types'
 import type { ScheduleResult, Warning } from '../../lib/scheduler'
+import { deltaClass, formatDelta, itemDelta } from '../../lib/rta'
 import { formatDuration, formatNightTime } from '../../lib/time'
 
 type Row =
@@ -8,8 +9,8 @@ type Row =
 
 function warningText(w: Warning, byId: Map<string, PlanItem>): string {
   switch (w.type) {
-    case 'overBedtime':
-      return `就寝までに ${formatDuration(w.overrunMin)} 収まりません。タスクを外すか就寝時刻を調整してください`
+    case 'overEnd':
+      return `終了までに ${formatDuration(w.overrunMin)} 収まりません。タスクを外すか終了時刻を調整してください`
     case 'fixedOverlap':
       return `固定時刻の予定「${byId.get(w.itemIds[0])?.name}」と「${byId.get(w.itemIds[1])?.name}」が重なっています`
     case 'fixedPast':
@@ -18,7 +19,7 @@ function warningText(w: Warning, byId: Map<string, PlanItem>): string {
 }
 
 type Props = {
-  plan: TonightPlan
+  plan: ScenePlan
   schedule: ScheduleResult
   /** NOW カードに出ている「今やるタスク」。行を強調表示する */
   currentItemId?: string
@@ -54,10 +55,11 @@ export function Timeline({
       minutes: g.end - g.start,
     })),
   ]
-  if (schedule.freeAfterMin > 0) {
+  // 最終タスク後の自由時間は終了時刻があるときだけ存在する(終了なしなら常に 0)
+  if (schedule.freeAfterMin > 0 && plan.endAt !== undefined) {
     rows.push({
       kind: 'free',
-      start: plan.bedtime - schedule.freeAfterMin,
+      start: plan.endAt - schedule.freeAfterMin,
       minutes: schedule.freeAfterMin,
     })
   }
@@ -77,22 +79,31 @@ export function Timeline({
         <p className="placeholder">表示するタスクがありません。</p>
       ) : (
         <ul className="tl-list">
-          {doneItems.map((item) => (
-            <li key={item.id} className="tl-row tl-done">
-              <input
-                type="checkbox"
-                checked
-                aria-label={`${item.name} の完了を取り消す`}
-                onChange={() => onToggleDone(item.id)}
-              />
-              <span className="tl-time">
-                {item.doneAt !== undefined
-                  ? `${formatNightTime(item.doneAt)} 完了`
-                  : '完了'}
-              </span>
-              <span className="tl-name">{item.name}</span>
-            </li>
-          ))}
+          {doneItems.map((item) => {
+            // RTA 風の予定比: 完了時刻 − 開始時に凍結した予定終了
+            const delta = itemDelta(plan, item)
+            return (
+              <li key={item.id} className="tl-row tl-done">
+                <input
+                  type="checkbox"
+                  checked
+                  aria-label={`${item.name} の完了を取り消す`}
+                  onChange={() => onToggleDone(item.id)}
+                />
+                <span className="tl-time">
+                  {item.doneAt !== undefined
+                    ? `${formatNightTime(item.doneAt)} 完了`
+                    : '完了'}
+                </span>
+                <span className="tl-name">{item.name}</span>
+                {delta !== null && (
+                  <span className={`tl-delta delta ${deltaClass(delta)}`}>
+                    {formatDelta(delta)}
+                  </span>
+                )}
+              </li>
+            )
+          })}
 
           {rows.map((row) =>
             row.kind === 'task' ? (

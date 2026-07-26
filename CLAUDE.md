@@ -53,3 +53,8 @@
 - localhost 開発では実機特有の問題(crypto・キーボード・http オリジン)が顕在化しない。機能一式が揃ったら必ず Android 実機で通し確認する
 - localStorage はオリジン(IP:ポート)単位。PC の IP 変更や dev/preview のポート差でデータが別物になる(preview は 5173 に固定済み)
 - 公開は GitHub Pages(https://kurakamini.github.io/schedule-planner/)。main への push で `.github/workflows/deploy.yml` が build → 自動デプロイ。vite.config は本番ビルドのみ base='/schedule-planner/'、dev/preview はルート(ローカル運用を維持)
+- 公開反映は main へのマージ時のみ。作業ブランチへ push しただけでは公開されない。反映確認は PR マージ → Actions 成功 → 実機の順
+- 作業ブランチは毎回最新 main から同名で作り直す運用。マージ後の GitHub 上のブランチ削除は任意(放置で問題ない)
+- テスト・実ブラウザ確認は現在時刻に依存させない。深夜 3〜4 時台の実行だと開始時刻が終了時刻を越え「スケジュールを作成」が無効になる(リモート実行環境で実際に踏んだ)。fake timers か時刻の明示入力を使う
+- localStorage スキーマは v2(`sp.v2.*`、シーンごとのキー)。スキーマ変更は起動時移行で対応し、移行はやり直しが利かないため、マージ前に旧データ相当を仕込んだ実ブラウザ確認を必ず行う
+- 「予定 vs 実績」系の表示は固定時刻タスクで直感とズレやすい。予定比は終了見込みではなくスプリット式=最後の完了時点のズレにした経緯あり(詳細は design.md)

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { MascotState } from './mascot'
 import { pickMascotLine } from './mascot'
 
-const base = { nightKey: '2026-07-08', untilBedtime: 200 }
+const base = { dayKey: '2026-07-08', sceneName: '夜', untilEnd: 200 }
 const task = { taskId: 'i1', taskName: '風呂' }
 
 describe('pickMascotLine', () => {
@@ -51,21 +51,48 @@ describe('pickMascotLine', () => {
     expect(line.text).toContain('3時間20分')
   })
 
-  it('全部終わって就寝時刻も過ぎていたら寝るようにうながす', () => {
-    const line = pickMascotLine({ ...base, kind: 'allDone', untilBedtime: -5 })
+  it('全部終わって終了時刻も過ぎていたらねぎらう', () => {
+    const line = pickMascotLine({ ...base, kind: 'allDone', untilEnd: -5 })
     expect(line.mood).toBe('sleepy')
-    expect(line.text).toContain('寝よう')
+    expect(line.text).toContain('おつかれさま')
   })
 
-  it('タスクが残っていても就寝時刻を過ぎたら急かさず寝かせる', () => {
+  it('タスクが残っていても終了時刻を過ぎたら切り上げをすすめる', () => {
     const line = pickMascotLine({
       ...base,
       ...task,
       kind: 'now',
       leftMin: 20,
-      untilBedtime: 0,
+      untilEnd: 0,
     })
     expect(line.mood).toBe('sleepy')
+  })
+
+  describe('終了時刻なしのシーン(untilEnd = null)', () => {
+    it('残り時間に触れずに応援する', () => {
+      const line = pickMascotLine({
+        ...base,
+        ...task,
+        untilEnd: null,
+        kind: 'now',
+        leftMin: 30,
+      })
+      expect(line.mood).toBe('go')
+      expect(line.text).toContain('風呂')
+    })
+
+    it('全部終わったらシーン名を添えて完走をたたえる', () => {
+      const line = pickMascotLine({
+        ...base,
+        sceneName: '休日',
+        untilEnd: null,
+        kind: 'allDone',
+      })
+      expect(line.mood).toBe('done')
+      expect(line.text).toContain('休日')
+      // 自由時間の残りは計算できないので出さない
+      expect(line.text).not.toContain('分')
+    })
   })
 
   it('同じ状況なら何度呼んでも同じセリフになる(再描画でぶれない)', () => {

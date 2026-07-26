@@ -14,20 +14,21 @@ function renumber(list: RoutineTask[]): RoutineTask[] {
   return list.map((r, i) => ({ ...r, order: i }))
 }
 
-export function useRoutines() {
+/** シーンごとのルーチン CRUD。シーン切替時は key={scene.id} の再マウントで作り直す前提 */
+export function useRoutines(sceneId: string) {
   const [routines, setRoutines] = useState<RoutineTask[]>(() =>
-    [...loadRoutines()].sort((a, b) => a.order - b.order),
+    [...loadRoutines(sceneId)].sort((a, b) => a.order - b.order),
   )
 
   const mutate = useCallback(
     (fn: (prev: RoutineTask[]) => RoutineTask[]) => {
       setRoutines((prev) => {
         const next = renumber(fn(prev))
-        saveRoutines(next)
+        saveRoutines(sceneId, next)
         return next
       })
     },
-    [],
+    [sceneId],
   )
 
   const add = useCallback(

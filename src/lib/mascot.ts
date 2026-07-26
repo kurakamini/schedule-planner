@@ -1,9 +1,12 @@
-// 「きょう」タブの実行ビューに出るミニキャラのセリフを決める純関数。
+// 実行ビューに出るミニキャラのセリフを決める純関数。
 // React・DOM には依存しない(見た目は components/tonight/Mascot.tsx)。
 //
 // セリフは候補からランダムに見えるように選ぶが、実際には seed から決めている。
 // 現在時刻は 30 秒ごとに更新される(useNow)ため、乱数で選ぶと再描画のたびに
 // セリフが変わってしまう。タスクが切り替わったときだけ変わるようにする。
+//
+// シーンは夜だけとは限らない(朝・休日など)。「寝よう」のような夜前提の言い回しは
+// 避け、終了時刻を持たないシーンでも成り立つ文にする。
 
 import { formatDuration, formatNightTime } from './time'
 
@@ -12,8 +15,8 @@ export type MascotMood =
   | 'hurry' // 残りわずか / 予定を過ぎている
   | 'rest' // 固定予定待ちの自由時間
   | 'done' // 全部終わった
-  | 'sleepy' // 就寝時刻を過ぎている
-  | 'idle' // 今夜やることがない
+  | 'sleepy' // 終了時刻を過ぎている
+  | 'idle' // きょうやることがない
 
 export type MascotLine = { mood: MascotMood; text: string }
 
@@ -21,10 +24,12 @@ export type MascotLine = { mood: MascotMood; text: string }
 const HURRY_MIN = 5
 
 type Base = {
-  /** セリフ選択の種。夜ごとに同じ状況でも違うセリフになる */
-  nightKey: string
-  /** 就寝までの残り(分)。0 以下なら就寝時刻を過ぎている */
-  untilBedtime: number
+  /** セリフ選択の種。日ごとに、同じ状況でも違うセリフになる */
+  dayKey: string
+  /** シーン名(夜・朝・休日など) */
+  sceneName: string
+  /** 終了までの残り(分)。null = 終了時刻を決めないシーン。0 以下 = 過ぎている */
+  untilEnd: number | null
 }
 
 export type MascotState = Base &
@@ -47,19 +52,25 @@ export function pickMascotLine(state: MascotState): MascotLine {
   if (state.kind === 'empty') {
     return {
       mood: 'idle',
-      text: '今夜やること、空っぽだよ！下の「プランを編集」から選ぼう！',
+      text: 'きょうやること、空っぽだよ！下の「プランを編集」から選ぼう！',
     }
   }
 
   if (state.kind === 'allDone') {
-    if (state.untilBedtime <= 0) {
+    if (state.untilEnd === null) {
       return {
-        mood: 'sleepy',
-        text: 'ぜんぶ終わったよ、おつかれさま！もう寝よう〜',
+        mood: 'done',
+        text: `${state.sceneName}のぶん、ぜんぶ終わったー！完走だよ、おつかれさま！`,
       }
     }
-    const free = formatDuration(state.untilBedtime)
-    return choose('done', state.nightKey, [
+    if (state.untilEnd <= 0) {
+      return {
+        mood: 'sleepy',
+        text: 'ぜんぶ終わったよ、おつかれさま！ゆっくり休んで〜',
+      }
+    }
+    const free = formatDuration(state.untilEnd)
+    return choose('done', state.dayKey, [
       `ぜんぶ終わったー！あとの ${free} は好きに使っていいよ！`,
       `やりきったね！${free} まるまる自由時間、堂々とどうぞ！`,
       `完ぺき！ここから ${free} はごほうびタイムだよ！`,
@@ -67,12 +78,12 @@ export function pickMascotLine(state: MascotState): MascotLine {
   }
 
   // ここから先は残っているタスクがある状態
-  const seed = `${state.nightKey}:${state.taskId}`
+  const seed = `${state.dayKey}:${state.taskId}`
 
-  if (state.untilBedtime <= 0) {
+  if (state.untilEnd !== null && state.untilEnd <= 0) {
     return choose('sleepy', seed, [
-      `もう就寝時刻すぎてるよ！${state.taskName} が終わったら寝よう`,
-      'そろそろ限界の時間…！残りは明日にまわしてもいいからね',
+      `もう終了時刻すぎてるよ！${state.taskName} で切り上げよう`,
+      'そろそろタイムオーバー…！残りは明日にまわしてもいいからね',
     ])
   }
 

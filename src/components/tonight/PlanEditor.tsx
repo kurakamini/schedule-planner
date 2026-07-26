@@ -1,25 +1,28 @@
-import { useState } from 'react'
-import type { TonightPlan } from '../../types'
+import { useEffect, useState } from 'react'
+import type { Scene, ScenePlan } from '../../types'
 import { formatNightTime, parseNightTime } from '../../lib/time'
-import type { AdhocInput } from '../../hooks/useTonightPlan'
+import type { AdhocInput } from '../../hooks/useScenePlan'
 import { AdhocForm } from './AdhocForm'
 
 type Props = {
-  plan: TonightPlan
+  scene: Scene
+  plan: ScenePlan
   onToggle: (id: string) => void
   onMove: (id: string, direction: -1 | 1) => void
   onAdd: (input: AdhocInput) => void
-  onSetBedtime: (bedtime: number) => void
+  /** undefined = 終了なし(入力欄が空) */
+  onSetEndAt: (endAt: number | undefined) => void
   onSetAnchor: (anchorAt: number) => void
   onStart: () => void
 }
 
 export function PlanEditor({
+  scene,
   plan,
   onToggle,
   onMove,
   onAdd,
-  onSetBedtime,
+  onSetEndAt,
   onSetAnchor,
   onStart,
 }: Props) {
@@ -28,18 +31,29 @@ export function PlanEditor({
   const [anchorDraft, setAnchorDraft] = useState(() =>
     formatNightTime(plan.anchorAt),
   )
-  const [bedtimeDraft, setBedtimeDraft] = useState(() =>
-    formatNightTime(plan.bedtime),
+  const [endDraft, setEndDraft] = useState(() =>
+    plan.endAt !== undefined ? formatNightTime(plan.endAt) : '',
   )
+
+  // 画面復帰時の追従などフック側で anchorAt が変わった時に入力欄へ反映する。
+  // 入力中(ドラフトが同じ値にパースされる時)は書き換えず、打ちかけを壊さない
+  useEffect(() => {
+    setAnchorDraft((draft) =>
+      parseNightTime(draft) === plan.anchorAt
+        ? draft
+        : formatNightTime(plan.anchorAt),
+    )
+  }, [plan.anchorAt])
+
   const anchorParsed = parseNightTime(anchorDraft)
-  const bedtimeParsed = parseNightTime(bedtimeDraft)
+  // 終了時刻は空欄 = 終了なし(締切を決めず所要時間だけで組む)
+  const endEmpty = endDraft.trim() === ''
+  const endParsed = endEmpty ? null : parseNightTime(endDraft)
   const anchorInvalid = anchorParsed === null
-  const bedtimeInvalid = bedtimeParsed === null
-  // 開始時刻が就寝時刻以降だとスケジュールが成立しない(表示も矛盾する)ため弾く
+  const endInvalid = !endEmpty && endParsed === null
+  // 開始時刻が終了時刻以降だとスケジュールが成立しない(表示も矛盾する)ため弾く
   const orderInvalid =
-    anchorParsed !== null &&
-    bedtimeParsed !== null &&
-    anchorParsed >= bedtimeParsed
+    anchorParsed !== null && endParsed !== null && anchorParsed >= endParsed
 
   const items = [...plan.items].sort((a, b) => a.order - b.order)
   const includedCount = items.filter((it) => it.included).length
@@ -50,15 +64,19 @@ export function PlanEditor({
     if (parsed !== null) onSetAnchor(parsed)
   }
 
-  function handleBedtimeChange(value: string) {
-    setBedtimeDraft(value)
+  function handleEndChange(value: string) {
+    setEndDraft(value)
+    if (value.trim() === '') {
+      onSetEndAt(undefined) // 空欄 = 終了なし
+      return
+    }
     const parsed = parseNightTime(value)
-    if (parsed !== null) onSetBedtime(parsed)
+    if (parsed !== null) onSetEndAt(parsed)
   }
 
   return (
     <section>
-      <h2>今夜のプラン</h2>
+      <h2>{scene.name}のプラン</h2>
 
       <div className="time-row">
         <div className="field">
@@ -77,16 +95,17 @@ export function PlanEditor({
           />
         </div>
         <div className="field">
-          <label htmlFor="plan-bedtime">就寝時刻(今夜)</label>
+          <label htmlFor="plan-end">終了時刻</label>
           <input
-            id="plan-bedtime"
+            id="plan-end"
             className="time-input"
             inputMode="numeric"
-            value={bedtimeDraft}
-            onChange={(e) => handleBedtimeChange(e.target.value)}
+            placeholder="なし"
+            value={endDraft}
+            onChange={(e) => handleEndChange(e.target.value)}
             onBlur={() => {
-              if (bedtimeParsed !== null) {
-                setBedtimeDraft(formatNightTime(bedtimeParsed))
+              if (endParsed !== null) {
+                setEndDraft(formatNightTime(endParsed))
               }
             }}
           />
@@ -94,25 +113,25 @@ export function PlanEditor({
       </div>
       <p className="hint">
         時刻は 2130 のようにコロンなしでも入力できます(深夜 0 時越えは 2430 =
-        24:30)
+        24:30)。終了時刻を空欄にすると締切なしで組みます
       </p>
       {anchorInvalid && (
         <p className="field-error" role="alert">
           開始時刻を読み取れません。2130 か 21:30 のように入力してください
         </p>
       )}
-      {bedtimeInvalid && (
+      {endInvalid && (
         <p className="field-error" role="alert">
-          就寝時刻を読み取れません。2430 か 24:30 のように入力してください
+          終了時刻を読み取れません。2430 か 24:30 のように入力してください
         </p>
       )}
       {orderInvalid && (
         <p className="field-error" role="alert">
-          開始時刻は就寝時刻より前にしてください
+          開始時刻は終了時刻より前にしてください
         </p>
       )}
 
-      <h3>今夜やること</h3>
+      <h3>きょうやること</h3>
       {items.length === 0 ? (
         <p className="placeholder">
           タスクがありません。ルーチンタブで定番を登録するか、下から今日だけのタスクを追加してください。
@@ -177,7 +196,7 @@ export function PlanEditor({
         type="button"
         className="btn-primary btn-large"
         disabled={
-          includedCount === 0 || bedtimeInvalid || anchorInvalid || orderInvalid
+          includedCount === 0 || endInvalid || anchorInvalid || orderInvalid
         }
         onClick={onStart}
       >

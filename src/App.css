@@ -12,9 +12,22 @@
 
 .app-header h1 {
   margin: 0;
-  font-size: 1.05rem;
-  color: var(--text-sub);
-  font-weight: 600;
+  font-size: 1.35rem;
+  color: var(--text);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+/* タイトル前のアクセントバー(場所を取らずに目を引かせる) */
+.app-header h1::before {
+  content: '';
+  display: inline-block;
+  width: 5px;
+  height: 1.05em;
+  border-radius: 3px;
+  background: var(--accent);
+  margin-right: 0.5rem;
+  vertical-align: -0.16em;
 }
 
 .app-content {
@@ -519,6 +532,57 @@
 .tl-summary {
   color: var(--text-sub);
   margin: 0 0 1rem;
+}
+
+/* シーン切り替えチップ */
+.scene-switcher {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+  margin: 0 0 0.75rem;
+}
+
+.scene-chip {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: none;
+  padding: 0.3rem 0.95rem;
+  min-height: 36px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.scene-chip-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 600;
+}
+
+/* RTA 風の予定比(緑=先行 / 赤=遅れ / グレー=同着) */
+.delta {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.delta-ahead {
+  color: var(--good);
+}
+
+.delta-behind {
+  color: var(--danger);
+}
+
+.delta-even {
+  color: var(--text-sub);
+}
+
+.tl-delta {
+  margin-left: auto;
+  font-size: 0.85rem;
+  flex-shrink: 0;
 }
 
 /* ---- ルーチンタブ ---- */

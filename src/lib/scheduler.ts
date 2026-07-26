@@ -13,18 +13,18 @@ export type Gap = { start: number; end: number }
 export type Warning =
   | { type: 'fixedOverlap'; itemIds: [string, string] } // 固定予定同士が重なっている
   | { type: 'fixedPast'; itemId: string } // 固定予定の開始時刻を現在時刻が過ぎている
-  | { type: 'overBedtime'; overrunMin: number } // 就寝時刻に収まらない(超過分)
+  | { type: 'overEnd'; overrunMin: number } // 終了時刻に収まらない(超過分)
 
 export type ScheduleResult = {
   /** 全項目の配置(超過分も含む)。開始時刻順 */
   scheduled: Scheduled[]
   /** 固定予定待ちの空き時間(タイムラインに「自由時間」行として表示) */
   gaps: Gap[]
-  /** 最終タスク後〜就寝の自由時間(分) */
+  /** 最終タスク後〜終了の自由時間(分) */
   freeAfterMin: number
   /** gaps + freeAfterMin */
   freeTotalMin: number
-  /** 就寝時刻を越える項目(自動では削らない。外すのはユーザーの判断) */
+  /** 終了時刻を越える項目(自動では削らない。外すのはユーザーの判断) */
   overflowItemIds: string[]
   warnings: Warning[]
 }
@@ -36,20 +36,20 @@ export type ScheduleResult = {
  * - 固定時刻タスクはユーザー指定の時刻を常に尊重する(過去でも動かさず警告のみ)
  * - 可変タスクは order 順を保ったまま、現在時刻から固定予定の隙間へ詰める。
  *   隙間に収まらない場合は固定予定の後ろへ送る(順序の入れ替えはしない)
+ * - 並び順で固定タスクより後ろの可変タスクは、固定の前の隙間へ繰り上げない
+ *   (並び順=実行順。固定の前にやりたいタスクは上に並べる)
  */
 export function buildSchedule(input: {
   items: PlanItem[]
   now: number
-  bedtime: number
+  /** 終了時刻。undefined = 終了なし(超過警告・最終タスク後の自由時間を出さない) */
+  endAt?: number
 }): ScheduleResult {
-  const { items, now, bedtime } = input
+  const { items, now, endAt } = input
 
   const fixed = items
     .filter((i) => i.fixedStart !== undefined)
     .sort((a, b) => a.fixedStart! - b.fixedStart! || a.order - b.order)
-  const flex = items
-    .filter((i) => i.fixedStart === undefined)
-    .sort((a, b) => a.order - b.order)
 
   const scheduled: Scheduled[] = []
   const warnings: Warning[] = []
@@ -83,77 +83,80 @@ export function buildSchedule(input: {
     }
   }
 
-  // 2. 可変タスクの配置を妨げる区間(現在時刻以降に残っている固定予定)を作る
-  const blockers: Gap[] = []
-  for (const item of fixed) {
-    const start = Math.max(item.fixedStart!, now)
-    const end = item.fixedStart! + item.durationMin
-    if (end > start) blockers.push({ start, end })
-  }
-  blockers.sort((a, b) => a.start - b.start)
-  const mergedBlockers = mergeIntervals(blockers)
+  // 2. 可変タスクの配置を妨げる区間(固定予定の時間帯)を作る
+  const blockers = mergeIntervals(
+    fixed
+      .map((i) => ({
+        start: i.fixedStart!,
+        end: i.fixedStart! + i.durationMin,
+      }))
+      .sort((a, b) => a.start - b.start),
+  )
 
-  // 3. 可変タスクを order 順にカーソル配置
+  // 3. 全項目を order 順にたどってカーソル配置する。
+  //    固定項目を通過したらカーソルをその終了時刻まで進めるため、
+  //    並び順で固定より後ろの可変タスクは固定の前へ繰り上がらない
+  //    (画面の並び順=実行順。固定の前にやりたいタスクは上に並べる)。
+  //    可変項目はカーソル以降で固定予定と重ならない最初の位置に置く
+  const byOrder = [...items].sort((a, b) => a.order - b.order)
   let cursor = now
-  let bi = 0
-  for (const item of flex) {
-    for (;;) {
-      // カーソルより手前・カーソルを含むブロッカーを消化する
-      while (bi < mergedBlockers.length && mergedBlockers[bi].start <= cursor) {
-        if (cursor < mergedBlockers[bi].end) cursor = mergedBlockers[bi].end
-        bi++
-      }
-      const next = bi < mergedBlockers.length ? mergedBlockers[bi] : undefined
-      if (next && cursor + item.durationMin > next.start) {
-        // 次の固定予定までに収まらない → 固定予定の後ろへ送る(空きは自由時間になる)
-        cursor = next.end
-        bi++
-        continue
-      }
-      scheduled.push({
-        itemId: item.id,
-        start: cursor,
-        end: cursor + item.durationMin,
-      })
-      cursor += item.durationMin
-      break
+  for (const item of byOrder) {
+    if (item.fixedStart !== undefined) {
+      cursor = Math.max(cursor, item.fixedStart + item.durationMin)
+      continue // 配置は手順 1 で済んでいる
     }
+    let start = cursor
+    for (const b of blockers) {
+      if (b.end <= start) continue // 通過済みの固定予定
+      if (start + item.durationMin <= b.start) break // 次の固定予定の前に収まる
+      start = Math.max(start, b.end) // 収まらない → 固定予定の後ろへ(空きは自由時間になる)
+    }
+    scheduled.push({ itemId: item.id, start, end: start + item.durationMin })
+    cursor = start + item.durationMin
   }
 
   scheduled.sort((a, b) => a.start - b.start)
 
-  // 4. 空き時間 = [now, bedtime] から配置済み区間を除いた残り
-  const busy = mergeIntervals(
+  // 4. 空き時間 = [now, horizon] から配置済み区間を除いた残り。
+  //    horizon は終了時刻。終了なしのときは最後のタスクの終了まで
+  //    (「最終タスク後の自由時間」がなくなり、固定予定待ちの隙間だけ残る)
+  const rawBusy = mergeIntervals(
     scheduled
-      .map((s) => ({ start: Math.max(s.start, now), end: Math.min(s.end, bedtime) }))
+      .map((s) => ({ start: Math.max(s.start, now), end: s.end }))
       .filter((b) => b.end > b.start)
       .sort((a, b) => a.start - b.start),
   )
+  const horizon =
+    endAt ?? (rawBusy.length > 0 ? rawBusy[rawBusy.length - 1].end : now)
+  const busy = rawBusy
+    .map((b) => ({ start: b.start, end: Math.min(b.end, horizon) }))
+    .filter((b) => b.end > b.start)
   const free: Gap[] = []
   let c = now
   for (const b of busy) {
     if (b.start > c) free.push({ start: c, end: b.start })
     c = Math.max(c, b.end)
   }
-  if (c < bedtime) free.push({ start: c, end: bedtime })
+  if (c < horizon) free.push({ start: c, end: horizon })
 
-  // 末尾が就寝時刻まで届く空きは「最終タスク後の自由時間」、それ以外は隙間
+  // 末尾が終了時刻まで届く空きは「最終タスク後の自由時間」、それ以外は隙間
   let freeAfterMin = 0
   let gaps = free
   const lastFree = free[free.length - 1]
-  if (lastFree && lastFree.end === bedtime) {
+  if (endAt !== undefined && lastFree && lastFree.end === endAt) {
     freeAfterMin = lastFree.end - lastFree.start
     gaps = free.slice(0, -1)
   }
   const freeTotalMin = free.reduce((sum, g) => sum + (g.end - g.start), 0)
 
-  // 5. 就寝時刻を越える項目
-  const overflowItemIds = scheduled
-    .filter((s) => s.end > bedtime)
-    .map((s) => s.itemId)
-  if (overflowItemIds.length > 0) {
+  // 5. 終了時刻を越える項目(終了なしのときは超過という概念がない)
+  const overflowItemIds =
+    endAt !== undefined
+      ? scheduled.filter((s) => s.end > endAt).map((s) => s.itemId)
+      : []
+  if (endAt !== undefined && overflowItemIds.length > 0) {
     const maxEnd = Math.max(...scheduled.map((s) => s.end))
-    warnings.push({ type: 'overBedtime', overrunMin: maxEnd - bedtime })
+    warnings.push({ type: 'overEnd', overrunMin: maxEnd - endAt })
   }
 
   return { scheduled, gaps, freeAfterMin, freeTotalMin, overflowItemIds, warnings }

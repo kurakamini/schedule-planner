@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { PlanItem, RoutineTask, TonightPlan } from '../types'
+import type { PlanItem, RoutineTask, Scene, ScenePlan } from '../types'
 import { buildSchedule } from '../lib/scheduler'
 import { generateId } from '../lib/id'
 import { getNightKey, toNightMinutes } from '../lib/time'
-import { loadTonightPlan, saveTonightPlan } from '../lib/storage'
+import { loadScenePlan, saveScenePlan } from '../lib/storage'
 
 export type AdhocInput = {
   name: string
@@ -30,14 +30,14 @@ function renumber(items: PlanItem[]): PlanItem[] {
 
 /** 現在の先頭タスク(NOW カードに出るタスク)の ID */
 function headIdOf(
-  plan: Pick<TonightPlan, 'anchorAt' | 'bedtime'>,
+  plan: Pick<ScenePlan, 'anchorAt' | 'endAt'>,
   items: PlanItem[],
 ): string | undefined {
   const pending = items.filter((it) => it.included && !it.done)
   return buildSchedule({
     items: pending,
     now: plan.anchorAt,
-    bedtime: plan.bedtime,
+    endAt: plan.endAt,
   }).scheduled[0]?.itemId
 }
 
@@ -46,7 +46,7 @@ function headIdOf(
  * アンカー(スケジュールの起点)を操作時点の時刻に進める。
  * 時間経過やアプリの開き直しではアンカーを動かさない(開始時刻を保持する)。
  */
-function reanchor(prev: TonightPlan, nextItems: PlanItem[]): number {
+function reanchor(prev: ScenePlan, nextItems: PlanItem[]): number {
   if (!prev.started) return prev.anchorAt
   return headIdOf(prev, prev.items) !== headIdOf(prev, nextItems)
     ? toNightMinutes(new Date())
@@ -55,23 +55,24 @@ function reanchor(prev: TonightPlan, nextItems: PlanItem[]): number {
 
 /**
  * プラン未作成ならルーチン全件を選択済みで初期化する(開始時刻の初期値は現在時刻)。
- * 夜が変わっていたら(nightKey 不一致)前夜のプランを破棄して作り直す(F5)。
- * 深夜 0 時を過ぎても朝 4 時までは同じ夜として扱う。
+ * 日が変わっていたら(dayKey 不一致)前回のプランを破棄して作り直す(F5)。
+ * 深夜 0 時を過ぎても朝 4 時までは同じ日として扱う(全シーン共通)。
  * 作成ビュー表示中(started: false)は、あとから登録されたルーチンを末尾に取り込む
- * (当夜の調整=チェック・並び順・当日タスク・開始時刻はそのまま残す)。
+ * (当日の調整=チェック・並び順・当日タスクはそのまま残す。
+ * 開始時刻の開き直し時の追従は catchUpAnchor が担当)。
  */
 function syncWithRoutines(
-  stored: TonightPlan | null,
+  stored: ScenePlan | null,
   routines: RoutineTask[],
-  defaultBedtime: number,
-): TonightPlan {
-  const nightKey = getNightKey(new Date())
-  const prev = stored !== null && stored.nightKey === nightKey ? stored : null
+  defaultEnd: number | undefined, // undefined = 終了なしシーン
+): ScenePlan {
+  const dayKey = getNightKey(new Date())
+  const prev = stored !== null && stored.dayKey === dayKey ? stored : null
   if (prev?.started) return prev
   if (!prev) {
     return {
-      nightKey,
-      bedtime: defaultBedtime,
+      dayKey,
+      endAt: defaultEnd,
       started: false,
       anchorAt: toNightMinutes(new Date()),
       items: routines.map((r, i) => routineToItem(r, i)),
@@ -91,29 +92,83 @@ function syncWithRoutines(
   }
 }
 
-export function useTonightPlan(routines: RoutineTask[], defaultBedtime: number) {
-  const [plan, setPlan] = useState<TonightPlan>(() =>
-    syncWithRoutines(loadTonightPlan(), routines, defaultBedtime),
+/**
+ * 開き直し(マウント・画面復帰)時に開始時刻を現在へ追従させる。
+ * 作成ビュー中(started: false)で開始時刻が過去になっていたら現在時刻に進める。
+ * 未来に設定した値(開始前の仕込み)と実行中のアンカーは動かさない。
+ */
+function catchUpAnchor(plan: ScenePlan): ScenePlan {
+  if (plan.started) return plan
+  const now = toNightMinutes(new Date())
+  return plan.anchorAt < now ? { ...plan, anchorAt: now } : plan
+}
+
+/**
+ * RTA 表示の基準タイムを凍結する。開始時点の配置から各タスクの予定終了を記録し、
+ * 実行中は「基準 vs 実績」で予定比(±)を出す(完了による再配置では基準を動かさない)。
+ * 再編集からの開始では未完了分だけ引き直し、完了済みの基準(過去の実績比較)は保持する
+ */
+function snapshotBaseline(prev: ScenePlan): Record<string, number> {
+  const pending = prev.items.filter((it) => it.included && !it.done)
+  const { scheduled } = buildSchedule({
+    items: pending,
+    now: prev.anchorAt,
+    endAt: prev.endAt,
+  })
+  const next: Record<string, number> = {}
+  for (const it of prev.items) {
+    const kept = prev.baselineEnds?.[it.id]
+    if (it.done && kept !== undefined) next[it.id] = kept
+  }
+  for (const s of scheduled) next[s.itemId] = s.end
+  return next
+}
+
+/** シーンごとの当日プラン。シーン切替時は key={scene.id} の再マウントで作り直す前提 */
+export function useScenePlan(scene: Scene, routines: RoutineTask[]) {
+  const [plan, setPlan] = useState<ScenePlan>(() =>
+    catchUpAnchor(
+      syncWithRoutines(loadScenePlan(scene.id), routines, scene.defaultEnd),
+    ),
   )
+
+  // スマホはリロードなしでブラウザに戻ることが多く、マウント時だけでは
+  // 開始時刻が古いままになるため、画面復帰時にも追従させる
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return
+      setPlan((prev) => {
+        const next = catchUpAnchor(prev)
+        if (next !== prev) saveScenePlan(scene.id, next)
+        return next
+      })
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () =>
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+  }, [scene.id])
 
   // ルーチンの後追い登録を作成ビューに反映する。
   // 同期結果は毎回保存し、表示中のプランとストレージを常に一致させる
   // (保存しないと、導出だけされたプランが再マウントのたびに作り直される)
   useEffect(() => {
     setPlan((prev) => {
-      const next = syncWithRoutines(prev, routines, defaultBedtime)
-      saveTonightPlan(next)
+      const next = syncWithRoutines(prev, routines, scene.defaultEnd)
+      saveScenePlan(scene.id, next)
       return next
     })
-  }, [routines, defaultBedtime])
+  }, [routines, scene.id, scene.defaultEnd])
 
-  const mutate = useCallback((fn: (prev: TonightPlan) => TonightPlan) => {
-    setPlan((prev) => {
-      const next = fn(prev)
-      saveTonightPlan(next)
-      return next
-    })
-  }, [])
+  const mutate = useCallback(
+    (fn: (prev: ScenePlan) => ScenePlan) => {
+      setPlan((prev) => {
+        const next = fn(prev)
+        saveScenePlan(scene.id, next)
+        return next
+      })
+    },
+    [scene.id],
+  )
 
   const toggleIncluded = useCallback(
     (id: string) => {
@@ -180,9 +235,10 @@ export function useTonightPlan(routines: RoutineTask[], defaultBedtime: number) 
     [mutate],
   )
 
-  const setBedtime = useCallback(
-    (bedtime: number) => {
-      mutate((prev) => ({ ...prev, bedtime }))
+  /** 終了時刻の設定。undefined = 終了なし(入力欄を空にした) */
+  const setEndAt = useCallback(
+    (endAt: number | undefined) => {
+      mutate((prev) => ({ ...prev, endAt }))
     },
     [mutate],
   )
@@ -197,7 +253,11 @@ export function useTonightPlan(routines: RoutineTask[], defaultBedtime: number) 
 
   // 開始時刻は入力欄の値(anchorAt)をそのまま使うため、ここでは再スタンプしない
   const start = useCallback(() => {
-    mutate((prev) => ({ ...prev, started: true }))
+    mutate((prev) => ({
+      ...prev,
+      started: true,
+      baselineEnds: snapshotBaseline(prev),
+    }))
   }, [mutate])
 
   const backToEdit = useCallback(() => {
@@ -210,7 +270,7 @@ export function useTonightPlan(routines: RoutineTask[], defaultBedtime: number) 
     toggleDone,
     moveItem,
     addItem,
-    setBedtime,
+    setEndAt,
     setAnchor,
     start,
     backToEdit,
