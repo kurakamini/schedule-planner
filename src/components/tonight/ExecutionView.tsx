@@ -1,8 +1,12 @@
-import type { TonightPlan } from '../../types'
+import type { PlanItem, TonightPlan } from '../../types'
+import type { Scheduled } from '../../lib/scheduler'
 import { buildSchedule } from '../../lib/scheduler'
+import type { MascotState } from '../../lib/mascot'
+import { pickMascotLine } from '../../lib/mascot'
 import { formatDuration, formatNightTime } from '../../lib/time'
 import type { AdhocInput } from '../../hooks/useTonightPlan'
 import { AdhocForm } from './AdhocForm'
+import { Mascot } from './Mascot'
 import { Timeline } from './Timeline'
 
 type Props = {
@@ -46,6 +50,20 @@ export function ExecutionView({
         就寝まで {untilBedtime >= 0 ? formatDuration(untilBedtime) : '—(就寝時刻を過ぎています)'}
         ・自由時間 合計 {formatDuration(schedule.freeTotalMin)}
       </p>
+
+      <Mascot
+        line={pickMascotLine(
+          toMascotState({
+            plan,
+            now,
+            untilBedtime,
+            hasItems: included.length > 0,
+            allDone,
+            current,
+            currentItem,
+          }),
+        )}
+      />
 
       {allDone ? (
         <div className="celebration">
@@ -123,4 +141,35 @@ export function ExecutionView({
       </div>
     </section>
   )
+}
+
+/** 表示中の状態をミニキャラのセリフ判定用にまとめ直す */
+function toMascotState(input: {
+  plan: TonightPlan
+  now: number
+  untilBedtime: number
+  hasItems: boolean
+  allDone: boolean
+  current?: Scheduled
+  currentItem?: PlanItem
+}): MascotState {
+  const { plan, now, untilBedtime, hasItems, allDone, current, currentItem } =
+    input
+  const base = { nightKey: plan.nightKey, untilBedtime }
+
+  if (!hasItems) return { ...base, kind: 'empty' }
+  if (allDone) return { ...base, kind: 'allDone' }
+  if (!current || !currentItem) return { ...base, kind: 'empty' }
+
+  const task = { taskId: currentItem.id, taskName: currentItem.name }
+  if (current.start > now) {
+    return {
+      ...base,
+      ...task,
+      kind: 'waiting',
+      startAt: current.start,
+      waitMin: current.start - now,
+    }
+  }
+  return { ...base, ...task, kind: 'now', leftMin: current.end - now }
 }

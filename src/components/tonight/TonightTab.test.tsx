@@ -43,6 +43,8 @@ const tlRows = () =>
 const nowCardTask = () =>
   document.querySelector('.now-card .now-task')?.textContent
 
+const mascotText = () => document.querySelector('.mascot-bubble')?.textContent
+
 describe('TonightTab: プラン作成ビュー', () => {
   it('ルーチン全件が選択済みで並び、開始時刻は現在時刻・就寝時刻はデフォルト値', () => {
     render(<TonightTab />)
@@ -313,6 +315,20 @@ describe('TonightTab: 実行ビュー', () => {
     ).toBeInTheDocument()
     // NOW カードは消える
     expect(document.querySelector('.now-card')).toBeNull()
+  })
+
+  it('ミニキャラはスケジュール作成後だけ出て、いまやることをしゃべる', () => {
+    render(<TonightTab />)
+    expect(document.querySelector('.mascot')).toBeNull() // 作成ビューでは出さない
+
+    fireEvent.click(createButton())
+    expect(mascotText()).toContain('夕食')
+
+    // 全部終わればねぎらいに変わる
+    for (let i = 0; i < 4; i++) {
+      fireEvent.click(screen.getByRole('button', { name: '完了' }))
+    }
+    expect(mascotText()).toContain('3時間20分')
   })
 })
 

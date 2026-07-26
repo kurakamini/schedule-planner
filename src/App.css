@@ -193,6 +193,167 @@
   font-size: 1.1rem;
 }
 
+/* ---- 今夜タブ: ミニキャラ ---- */
+
+.mascot {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.mascot-svg {
+  width: 76px;
+  height: 76px;
+  flex-shrink: 0;
+  overflow: visible;
+}
+
+.mascot-bubble {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  margin: 0 0 0.6rem;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--panel);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  animation: mascot-pop 0.28s ease-out;
+}
+
+/* 吹き出しのしっぽ(枠線の分だけ 2 枚重ねる) */
+.mascot-bubble::before,
+.mascot-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: 12px;
+  border: 8px solid transparent;
+  border-left: 0;
+}
+
+.mascot-bubble::before {
+  left: -8px;
+  border-right-color: var(--border);
+}
+
+.mascot-bubble::after {
+  left: -7px;
+  border-right-color: var(--panel);
+}
+
+/* ぷるぷる上下する。しゃべっている感を出す */
+.mascot-body {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: mascot-bob 1.6s ease-in-out infinite alternate;
+}
+
+.mascot-wing {
+  transform-box: fill-box;
+  transform-origin: 50% 15%;
+  animation: mascot-flap 0.9s ease-in-out infinite alternate;
+}
+
+.mascot-eyes {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: mascot-blink 4.5s infinite;
+}
+
+.mascot-beak {
+  transform-box: fill-box;
+  transform-origin: 50% 0;
+  animation: mascot-talk 0.6s ease-in-out infinite alternate;
+}
+
+.mascot-deco {
+  animation: mascot-deco 1.8s ease-in-out infinite alternate;
+}
+
+/* やる気モードは羽を大きく振る */
+.mascot-go .mascot-wing,
+.mascot-hurry .mascot-wing {
+  animation-duration: 0.45s;
+}
+
+.mascot-sleepy .mascot-body {
+  animation-duration: 3.2s;
+}
+
+@keyframes mascot-bob {
+  from {
+    transform: translateY(0) scaleY(1);
+  }
+  to {
+    transform: translateY(-3px) scaleY(1.03);
+  }
+}
+
+@keyframes mascot-flap {
+  from {
+    transform: rotate(-8deg);
+  }
+  to {
+    transform: rotate(14deg);
+  }
+}
+
+@keyframes mascot-blink {
+  0%,
+  92%,
+  100% {
+    transform: scaleY(1);
+  }
+  95% {
+    transform: scaleY(0.1);
+  }
+}
+
+@keyframes mascot-talk {
+  from {
+    transform: scaleY(0.6);
+  }
+  to {
+    transform: scaleY(1.15);
+  }
+}
+
+@keyframes mascot-deco {
+  from {
+    opacity: 0.45;
+    transform: translateY(1px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes mascot-pop {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mascot-body,
+  .mascot-wing,
+  .mascot-eyes,
+  .mascot-beak,
+  .mascot-deco,
+  .mascot-bubble {
+    animation: none;
+  }
+}
+
 /* ---- 今夜タブ: 実行ビュー ---- */
 
 .exec-header {
