@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import './App.css'
 import { RoutinesTab } from './components/routines/RoutinesTab'
+import { RulesTab } from './components/rules/RulesTab'
 import { SettingsTab } from './components/settings/SettingsTab'
 import { SceneTab } from './components/tonight/SceneTab'
 
 const TABS = [
   { key: 'today', label: 'きょう' },
   { key: 'routines', label: 'ルーチン' },
+  { key: 'rules', label: 'きめごと' },
   { key: 'settings', label: '設定' },
 ] as const
 
@@ -23,6 +25,7 @@ function App() {
       <main className="app-content">
         {tab === 'today' && <SceneTab />}
         {tab === 'routines' && <RoutinesTab />}
+        {tab === 'rules' && <RulesTab />}
         {tab === 'settings' && <SettingsTab />}
       </main>
       <nav className="tab-bar" aria-label="メインタブ">

@@ -237,6 +237,16 @@
   animation: mascot-pop 0.28s ease-out;
 }
 
+/* if-then ルール由来のセリフであることを示す小さな見出し */
+.mascot-tag {
+  display: block;
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 0.15rem;
+}
+
 /* 吹き出しのしっぽ(枠線の分だけ 2 枚重ねる) */
 .mascot-bubble::before,
 .mascot-bubble::after {

@@ -6,6 +6,7 @@ import {
   loadScenePlan,
   saveCurrentSceneId,
   saveRoutines,
+  saveRules,
   saveScenePlan,
   saveScenes,
 } from '../../lib/storage'
@@ -406,6 +407,26 @@ describe('SceneTab: 実行ビュー', () => {
       fireEvent.click(screen.getByRole('button', { name: '完了' }))
     }
     expect(mascotText()).toContain('3時間20分')
+  })
+
+  it('登録したきめごとは、その場面でミニキャラのセリフになる', () => {
+    saveRules([
+      {
+        id: 'x1',
+        trigger: { type: 'ALL_DONE' },
+        action: '何を見るか先に決めてから開く',
+        order: 0,
+      },
+    ])
+    renderStarted()
+    // 実行中は当てはまらないので通常のセリフ
+    expect(mascotText()).toContain('夕食')
+
+    for (let i = 0; i < 4; i++) {
+      fireEvent.click(screen.getByRole('button', { name: '完了' }))
+    }
+    expect(mascotText()).toContain('何を見るか先に決めてから開く')
+    expect(document.querySelector('.mascot-tag')?.textContent).toBe('きめごと')
   })
 })
 

@@ -13,6 +13,9 @@ export function Mascot({ line }: Props) {
       <Chick mood={line.mood} />
       {/* key でセリフが変わるたびに吹き出しのポップを再生する */}
       <p className="mascot-bubble" key={line.text}>
+        {line.ruleId !== undefined && (
+          <span className="mascot-tag">きめごと</span>
+        )}
         {line.text}
       </p>
     </div>

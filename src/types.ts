@@ -43,6 +43,34 @@ export type PlanItem = {
   doneAt?: number
 }
 
+/**
+ * if-then ルール(実行意図)の引き金。
+ * docs/handover-schedule-planner.md では位置情報・アプリ起動も挙げているが、
+ * ブラウザからは検知できないため、アプリが自分で判定できるものだけを持つ
+ */
+export type RuleTrigger =
+  /** 固定予定待ちなどの自由時間に入ったとき(動画に手が伸びる瞬間) */
+  | { type: 'FREE_TIME' }
+  /** その日のタスクを全部終えたとき */
+  | { type: 'ALL_DONE' }
+  /** 名前が一致するタスクを始めるとき */
+  | { type: 'TASK_START'; taskName: string }
+  /** 指定時刻(夜通算分)を過ぎたとき。常時掲示になるので優先度は最後 */
+  | { type: 'TIME'; at: number }
+
+/**
+ * 「もし X なら Y する」1 件。シーンをまたいで共通(「1 本だけと思ったら」等は
+ * 時間帯に依らないため)。action は言い換えずそのまま提示する
+ */
+export type Rule = {
+  id: string
+  trigger: RuleTrigger
+  /** 動詞で始まる一文。ミニキャラがこのまま読み上げる */
+  action: string
+  /** 表示順。当てはまるルールが複数あれば若い順に 1 件だけ出す */
+  order: number
+}
+
 /** 当日のプラン全体(シーンごとに 1 つ) */
 export type ScenePlan = {
   /** 日の識別子(例 "2026-07-08"、朝 4 時境界)。起動時に不一致なら破棄する(F5) */

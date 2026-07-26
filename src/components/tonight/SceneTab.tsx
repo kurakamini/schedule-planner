@@ -1,6 +1,7 @@
 import type { Scene } from '../../types'
 import { useNow } from '../../hooks/useNow'
 import { useRoutines } from '../../hooks/useRoutines'
+import { useRules } from '../../hooks/useRules'
 import { useScenePlan } from '../../hooks/useScenePlan'
 import { useScenes } from '../../hooks/useScenes'
 import { SceneSwitcher } from '../SceneSwitcher'
@@ -25,6 +26,7 @@ export function SceneTab() {
 
 function SceneContent({ scene }: { scene: Scene }) {
   const { routines } = useRoutines(scene.id)
+  const { rules } = useRules()
   const {
     plan,
     toggleIncluded,
@@ -57,6 +59,7 @@ function SceneContent({ scene }: { scene: Scene }) {
     <ExecutionView
       scene={scene}
       plan={plan}
+      rules={rules}
       now={now}
       onToggleDone={toggleDone}
       onExclude={toggleIncluded}

@@ -2,12 +2,20 @@
 // 読み込みは JSON 破損・型不一致でも初期値にフォールバックし、決してクラッシュしない。
 // キーの v2 はスキーマ版数。v1(単一ルーチン・単一プラン)からは起動時に移行する。
 
-import type { PlanItem, RoutineTask, Scene, ScenePlan } from '../types'
+import type {
+  PlanItem,
+  RoutineTask,
+  Rule,
+  RuleTrigger,
+  Scene,
+  ScenePlan,
+} from '../types'
 import { generateId } from './id'
 
 const KEYS = {
   scenes: 'sp.v2.scenes',
   currentSceneId: 'sp.v2.currentSceneId',
+  rules: 'sp.v2.rules',
 } as const
 
 const routinesKey = (sceneId: string) => `sp.v2.routines.${sceneId}`
@@ -66,6 +74,15 @@ export function loadScenePlan(sceneId: string): ScenePlan | null {
 
 export function saveScenePlan(sceneId: string, plan: ScenePlan): void {
   save(planKey(sceneId), plan)
+}
+
+/** if-then ルールはシーン共通(時間帯に依らない決めごとのため) */
+export function loadRules(): Rule[] {
+  return load(KEYS.rules, isRuleArray, [])
+}
+
+export function saveRules(rules: Rule[]): void {
+  save(KEYS.rules, rules)
 }
 
 /** シーン削除時に、そのシーンのルーチン・当日プランも一緒に消す(ゴミを残さない) */
@@ -204,6 +221,35 @@ function isRoutineTask(v: unknown): v is RoutineTask {
 
 function isRoutineTaskArray(v: unknown): v is RoutineTask[] {
   return Array.isArray(v) && v.every(isRoutineTask)
+}
+
+function isRuleTrigger(v: unknown): v is RuleTrigger {
+  if (!isRecord(v)) return false
+  switch (v.type) {
+    case 'FREE_TIME':
+    case 'ALL_DONE':
+      return true
+    case 'TASK_START':
+      return typeof v.taskName === 'string'
+    case 'TIME':
+      return typeof v.at === 'number'
+    default:
+      return false
+  }
+}
+
+function isRule(v: unknown): v is Rule {
+  return (
+    isRecord(v) &&
+    typeof v.id === 'string' &&
+    isRuleTrigger(v.trigger) &&
+    typeof v.action === 'string' &&
+    typeof v.order === 'number'
+  )
+}
+
+function isRuleArray(v: unknown): v is Rule[] {
+  return Array.isArray(v) && v.every(isRule)
 }
 
 function isPlanItem(v: unknown): v is PlanItem {

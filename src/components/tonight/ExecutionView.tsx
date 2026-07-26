@@ -1,4 +1,4 @@
-import type { PlanItem, Scene, ScenePlan } from '../../types'
+import type { PlanItem, Rule, Scene, ScenePlan } from '../../types'
 import type { Scheduled } from '../../lib/scheduler'
 import { buildSchedule } from '../../lib/scheduler'
 import { deltaClass, formatDelta, overallDelta } from '../../lib/rta'
@@ -13,6 +13,8 @@ import { Timeline } from './Timeline'
 type Props = {
   scene: Scene
   plan: ScenePlan
+  /** if-then ルール。当てはまればミニキャラがその action をそのまま言う */
+  rules: Rule[]
   now: number
   onToggleDone: (id: string) => void
   onExclude: (id: string) => void
@@ -23,6 +25,7 @@ type Props = {
 export function ExecutionView({
   scene,
   plan,
+  rules,
   now,
   onToggleDone,
   onExclude,
@@ -89,6 +92,7 @@ export function ExecutionView({
             current,
             currentItem,
           }),
+          rules,
         )}
       />
 
@@ -185,7 +189,7 @@ function toMascotState(input: {
 }): MascotState {
   const { plan, scene, now, untilEnd, hasItems, allDone, current, currentItem } =
     input
-  const base = { dayKey: plan.dayKey, sceneName: scene.name, untilEnd }
+  const base = { dayKey: plan.dayKey, sceneName: scene.name, now, untilEnd }
 
   if (!hasItems) return { ...base, kind: 'empty' }
   if (allDone) return { ...base, kind: 'allDone' }
